@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Food Delivery{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
@@ -27,43 +26,19 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">Главная</a>
                     </li>
-                    {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('user.orders') }}">Мои заказы</a>
-                    </li>
-                    {% endif %}
                 </ul>
                 
                 <div class="d-flex align-items-center">
                     <!-- Корзина -->
                     <a href="{{ url_for('main.cart') }}" class="btn btn-warning position-relative me-3">
                         Корзина
-                        {% if session.get('cart') %}
-                        <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                            {{ session.get('cart', {})|length }}
-                        </span>
-                        {% endif %}
                     </a>
                     
                     <!-- Профиль пользователя -->
-                    {% if current_user.is_authenticated %}
-                    <div class="dropdown">
-                        <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            {{ current_user.username }}
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ url_for('user.profile') }}">Профиль</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('user.orders') }}">Мои заказы</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Выйти</a></li>
-                        </ul>
-                    </div>
-                    {% else %}
                     <div class="btn-group">
                         <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light me-2">Войти</a>
                         <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Регистрация</a>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
