@@ -5,7 +5,7 @@ load_dotenv()
 
 class Config:
     # СТРОКА 1: Использовать переменную окружения или временный ключ для разработки
-    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'временный-ключ-для-разработки'
     
     # СТРОКИ 2-5: Обработка DATABASE_URL для Render
     DATABASE_URL = os.environ.get('DATABASE_URL', '')
