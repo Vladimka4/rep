@@ -1,6 +1,7 @@
 import click
 from . import db  # Относительный импорт
 from .models import User, Category, Dish
+from .parsers.nsm_parser import save_nsm_menu_to_db, parse_nsm_menu
 import json
 import os
 
@@ -25,6 +26,52 @@ def init_app(app):
         click.echo(f'Администратор {username} успешно создан')
     
     @app.cli.command('init-db')
+    @app.cli.command('parse-nsm')
+    def parse_nsm():
+        """Парсинг меню ресторана На Старом Месте"""
+        click.echo('Начинаю парсинг меню nsm-22.ru...')
+        
+        dishes = parse_nsm_menu()
+        
+        if dishes:
+            if click.confirm(f'Найдено {len(dishes)} блюд. Сохранить в базу данных?'):
+                success = save_nsm_menu_to_db()
+                if success:
+                    click.echo('✅ Меню успешно сохранено в базу данных')
+                else:
+                    click.echo('❌ Ошибка при сохранении в базу данных')
+            else:
+                # Сохраняем в JSON для просмотра
+                import json
+                with open('parsed_nsm_menu.json', 'w', encoding='utf-8') as f:
+                    json.dump(dishes, f, ensure_ascii=False, indent=2)
+                click.echo('📄 Результат сохранен в parsed_nsm_menu.json')
+        else:
+            click.echo('❌ Не удалось получить меню')
+    
+    @app.cli.command('parse-specific-section')
+    @click.argument('url')
+    def parse_specific_section(url):
+        """Парсинг конкретного раздела меню"""
+        from .parsers.nsm_parser import NSMParser
+        
+        parser = NSMParser()
+        
+        # Извлекаем название раздела из URL
+        section_name = url.split('/')[-2].replace('-', ' ').title()
+        
+        click.echo(f'Парсинг раздела: {section_name}')
+        dishes = parser.parse_section(url, section_name)
+        
+        if dishes:
+            click.echo(f'Найдено {len(dishes)} блюд:')
+            for dish in dishes[:5]:  # Показываем первые 5
+                click.echo(f"  • {dish['name']} - {dish['price']} руб.")
+            
+            if len(dishes) > 5:
+                click.echo(f"  ... и еще {len(dishes) - 5} блюд")
+        else:
+            click.echo('❌ Не удалось получить блюда')
     def init_database():
         """Инициализация базы данных с тестовыми данными"""
         # Создаём категории

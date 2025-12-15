@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Парсинг На Старом Месте - Админ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Парсинг меню ресторана "На Старом Месте"</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Информация:</strong><br>
+                    • Сайт: nsm-22.ru<br>
+                    • Структура: WordPress + Elementor<br>
+                    • Автоматически определяются все разделы меню
+                </div>
+                
+                <form method="POST" action="{{ url_for('admin.parse_nsm_action') }}">
+                    <div class="mb-3">
+                        <label class="form-label">URL главной страницы (опционально)</label>
+                        <input type="url" class="form-control" name="base_url" 
+                               value="https://nsm-22.ru/" placeholder="https://nsm-22.ru/">
+                        <small class="form-text text-muted">
+                            Оставьте значение по умолчанию для парсинга всего меню
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Или выберите конкретный раздел</label>
+                        <select class="form-control" name="specific_section">
+                            <option value="">Весь сайт (автоматический поиск)</option>
+                            <option value="https://nsm-22.ru/salaty/">Салаты</option>
+                            <option value="https://nsm-22.ru/zakuski/">Закуски</option>
+                            <option value="https://nsm-22.ru/goryachie-zakuski/">Горячие закуски</option>
+                            <option value="https://nsm-22.ru/supy/">Супы</option>
+                            <option value="https://nsm-22.ru/pasta/">Паста</option>
+                            <option value="https://nsm-22.ru/ryba/">Рыба</option>
+                            <option value="https://nsm-22.ru/myaso-i-ptitsa/">Мясо и птица</option>
+                            <option value="https://nsm-22.ru/deserty/">Десерты</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Начать парсинг
+                    </button>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Отмена</a>
+                </form>
+                
+                <div class="mt-4">
+                    <h6>Структура данных:</h6>
+                    <ul>
+                        <li><strong>Категории:</strong> Разделы меню (салаты, закуски и т.д.)</li>
+                        <li><strong>Блюда:</strong> Название, цена, вес, изображение</li>
+                        <li><strong>Изображения:</strong> Автоматически скачиваются и сохраняются локально</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
