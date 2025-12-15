@@ -1,90 +1,3 @@
-// Добавление в корзину
-document.addEventListener('DOMContentLoaded', function() {
-    // Обработчики для кнопок "Добавить в корзину"
-    const addToCartButtons = document.querySelectorAll('.add-to-cart');
-    
-    addToCartButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const dishId = this.dataset.dishId;
-            
-            fetch(`/add_to_cart/${dishId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Обновляем счетчик корзины
-                    const cartCount = document.querySelector('#cart-count');
-                    if (cartCount) {
-                        cartCount.textContent = data.cart_total;
-                    }
-                    
-                    // Показываем уведомление
-                    showAlert(data.message, 'success');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Ошибка при добавлении в корзину', 'danger');
-            });
-        });
-    });
-    
-    // Обновление количества в корзине
-    const quantityInputs = document.querySelectorAll('.quantity-input');
-    
-    quantityInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            const dishId = this.dataset.dishId;
-            const quantity = this.value;
-            
-            fetch(`/update_cart/${dishId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                },
-                body: JSON.stringify({ quantity: quantity })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
-            });
-        });
-    });
-    
-    // Удаление из корзины
-    const removeButtons = document.querySelectorAll('.remove-from-cart');
-    
-    removeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const dishId = this.dataset.dishId;
-            
-            if (confirm('Удалить товар из корзины?')) {
-                fetch(`/remove_from_cart/${dishId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    }
-                });
-            }
-        });
-    });
-});
-
 // Функция показа уведомления
 function showAlert(message, type) {
     const alertDiv = document.createElement('div');
@@ -103,3 +16,58 @@ function showAlert(message, type) {
         }
     }, 3000);
 }
+
+// Добавление в корзину с главной страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчики для кнопок "Добавить в корзину" на главной
+    const addToCartButtons = document.querySelectorAll('.add-to-cart');
+    
+    addToCartButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const dishId = this.dataset.dishId;
+            
+            fetch(`/add_to_cart/${dishId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем счетчик корзины
+                    updateCartCount(data.cart_total);
+                    showAlert(data.message, 'success');
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Ошибка при добавлении в корзину', 'danger');
+            });
+        });
+    });
+    
+    // Функция обновления счетчика корзины
+    function updateCartCount(count) {
+        const cartCount = document.querySelector('#cart-count');
+        const cartBtn = document.querySelector('a[href="/cart"]');
+        
+        if (cartCount) {
+            cartCount.textContent = count;
+        } else if (cartBtn && count > 0) {
+            const badge = document.createElement('span');
+            badge.id = 'cart-count';
+            badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+            badge.textContent = count;
+            cartBtn.appendChild(badge);
+        }
+        
+        // Если корзина пуста, удаляем бейдж
+        if (count === 0 && cartCount) {
+            cartCount.remove();
+        }
+    }
+});

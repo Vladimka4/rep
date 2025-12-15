@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль - Food Delivery{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <div class="avatar-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" 
+                         style="width: 100px; height: 100px; border-radius: 50%; font-size: 2.5rem;">
+                        {{ current_user.username[0].upper() }}
+                    </div>
+                </div>
+                <h4>{{ current_user.username }}</h4>
+                <p class="text-muted">Пользователь с {{ current_user.created_at.strftime('%d.%m.%Y') }}</p>
+                
+                {% if current_user.is_admin %}
+                <span class="badge bg-danger">Администратор</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Статистика</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Заказов</span>
+                        <span class="badge bg-primary rounded-pill">{{ orders_count }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Избранное</span>
+                        <span class="badge bg-success rounded-pill">{{ favorites_count }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Редактировать профиль</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                        {% for error in form.username.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <a href="{{ url_for('user.orders') }}" class="btn btn-outline-primary w-100">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <span class="fs-4 me-2">📦</span>
+                                <span>Мои заказы</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <a href="{{ url_for('user.favorites') }}" class="btn btn-outline-success w-100">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <span class="fs-4 me-2">❤️</span>
+                                <span>Избранное</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

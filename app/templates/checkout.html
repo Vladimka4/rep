@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Оформление заказа - Food Delivery{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Данные для доставки</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.checkout') }}">
+                    {{ form.hidden_tag() if form }}
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Имя</label>
+                        <input type="text" class="form-control" id="name" 
+                               value="{{ current_user.username }}" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Адрес доставки *</label>
+                        <textarea class="form-control" id="address" name="address" 
+                                  rows="3" required placeholder="Улица, дом, квартира"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Телефон</label>
+                        <input type="tel" class="form-control" id="phone" name="phone"
+                               placeholder="+7 999 123-45-67">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Комментарий к заказу</label>
+                        <textarea class="form-control" name="comment" rows="2" 
+                                  placeholder="Дополнительные пожелания"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        Подтвердить заказ
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Ваш заказ</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group mb-3">
+                    {% for item in cart_items %}
+                    <div class="list-group-item d-flex justify-content-between">
+                        <div>
+                            <strong>{{ item.name }}</strong>
+                            <small class="text-muted d-block">× {{ item.quantity }}</small>
+                        </div>
+                        <span>{{ item.price * item.quantity }} ₽</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Товары ({{ total_items }})</span>
+                    <span>{{ total_price }} ₽</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Доставка</span>
+                    <span>Бесплатно</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-4">
+                    <strong>К оплате</strong>
+                    <strong class="fs-4">{{ total_price }} ₽</strong>
+                </div>
+                
+                <div class="alert alert-info">
+                    <small>
+                        <strong>Время доставки:</strong> 30-60 минут<br>
+                        <strong>Оплата:</strong> наличными курьеру
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
