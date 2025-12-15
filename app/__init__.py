@@ -39,5 +39,14 @@ def create_app(config_class=Config):
     # Создание таблиц БД
     with app.app_context():
         db.create_all()
-    
+    from .models import User
+    admin = User.query.filter_by(username='admin').first()
+    if not admin:
+        admin = User(
+            username='admin',
+            is_admin=True
+        )
+        admin.set_password('25102510')
+        db.session.add(admin)
+        db.session.commit()
     return app
