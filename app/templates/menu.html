@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category.name }} - Food Delivery{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1>{{ category.name }}</h1>
+        <p class="lead">Выберите понравившиеся блюда</p>
+    </div>
+</div>
+
+<div class="row">
+    {% for dish in dishes %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <img src="{{ url_for('static', filename='images/' + dish.image) if dish.image else 'https://via.placeholder.com/300' }}" 
+                 class="card-img-top" alt="{{ dish.name }}" style="height: 200px; object-fit: cover;">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">{{ dish.name }}</h5>
+                <p class="card-text">{{ dish.description }}</p>
+                <div class="mt-auto">
+                    <p class="card-text fw-bold fs-4">{{ dish.price }} ₽</p>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-primary add-to-cart" data-dish-id="{{ dish.id }}">
+                            В корзину
+                        </button>
+                        
+                        {% if current_user.is_authenticated %}
+                        <button class="btn btn-outline-danger favorite-btn" data-dish-id="{{ dish.id }}">
+                            {% if dish.id in favorite_ids %}
+                            <span class="favorite-icon">❤️</span>
+                            {% else %}
+                            <span class="favorite-icon">🤍</span>
+                            {% endif %}
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Добавление в корзину
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', function() {
+            const dishId = this.dataset.dishId;
+            
+            fetch(`/add_to_cart/${dishId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем счетчик корзины
+                    const cartCount = document.querySelector('#cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_total;
+                    } else {
+                        // Создаем бейдж если его нет
+                        const cartBtn = document.querySelector('a[href="/cart"]');
+                        const badge = document.createElement('span');
+                        badge.id = 'cart-count';
+                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+                        badge.textContent = data.cart_total;
+                        cartBtn.appendChild(badge);
+                    }
+                    
+                    // Показываем уведомление
+                    showAlert(data.message, 'success');
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Ошибка при добавлении в корзину', 'danger');
+            });
+        });
+    });
+    
+    // Добавление в избранное
+    document.querySelectorAll('.favorite-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const dishId = this.dataset.dishId;
+            const icon = this.querySelector('.favorite-icon');
+            
+            fetch(`/add_to_favorites/${dishId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.action === 'added') {
+                        icon.textContent = '❤️';
+                        this.classList.add('btn-danger');
+                        this.classList.remove('btn-outline-danger');
+                    } else {
+                        icon.textContent = '🤍';
+                        this.classList.remove('btn-danger');
+                        this.classList.add('btn-outline-danger');
+                    }
+                    showAlert(data.message, 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Ошибка', 'danger');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
