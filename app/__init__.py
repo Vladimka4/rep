@@ -82,24 +82,29 @@ def create_app(config_class=Config):
     from .commands import init_app as commands_init
     commands_init(app)
     
-    # Создание таблиц БД
-    with app.app_context():
-        try:
-            db.create_all()
-            app.logger.info("Таблицы БД созданы/проверены")
-        except Exception as e:
-            app.logger.error(f"Ошибка создания таблиц БД: {e}")
-    
-    # Создание администратора (как было)
-    from .models import User
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        admin = User(
-            username='admin',
-            is_admin=True
-        )
-        admin.set_password('25102510')
-        db.session.add(admin)
-        db.session.commit()
+    # Инициализация базы данных при запуске приложения
+    @app.before_first_request
+    def initialize_database():
+        """Инициализация БД при первом запросе"""
+        with app.app_context():
+            try:
+                db.create_all()
+                app.logger.info("Таблицы БД созданы/проверены")
+                
+                # Создание администратора (как было)
+                from .models import User
+                admin_user = User.query.filter_by(username='admin').first()
+                if not admin_user:
+                    admin_user = User(
+                        username='admin',
+                        is_admin=True
+                    )
+                    admin_user.set_password('25102510')
+                    db.session.add(admin_user)
+                    db.session.commit()
+                    app.logger.info("Администратор создан")
+                    
+            except Exception as e:
+                app.logger.error(f"Ошибка инициализации БД: {e}")
     
     return app

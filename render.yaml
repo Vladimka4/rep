@@ -11,6 +11,10 @@ services:
         fromDatabase:
           name: food-delivery-db
           property: connectionString
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      - key: FLASK_APP
+        value: wsgi.py
 
 databases:
   - name: food-delivery-db
