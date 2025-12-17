@@ -58,7 +58,7 @@
                 </div>
                 
                 <!-- Форма для загрузки изображений -->
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-header bg-success text-white">
                         <h6 class="mb-0">Загрузка изображений</h6>
                     </div>
@@ -88,6 +88,54 @@
                     </div>
                 </div>
                 
+                <!-- НОВАЯ ФОРМА: Обновление изображений категорий -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="fas fa-images me-1"></i> Обновление изображений категорий</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <strong><i class="fas fa-lightbulb me-1"></i> Как это работает:</strong><br>
+                            1. Система найдет для каждой категории первое блюдо с изображением<br>
+                            2. Изображение этого блюда будет установлено как изображение категории<br>
+                            3. Это улучшит отображение категорий на главной странице<br>
+                            4. <strong>Важно:</strong> Сначала должны быть спарсены блюда с изображениями
+                        </div>
+                        
+                        <form method="POST" action="{{ url_for('admin_parsing.update_category_images') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Что будет сделано:</label>
+                                <ul class="list-group mb-3">
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        Для каждой категории будет найден первый блюдо с изображением
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        Изображение блюда скопируется в поле изображения категории
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        Главная страница будет отображать категории с изображениями
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>Рекомендация:</strong> Выполняйте эту операцию после того, как загрузите хотя бы несколько изображений блюд.
+                            </div>
+                            
+                            <button type="submit" class="btn btn-info w-100" 
+                                    onclick="return confirm('Обновить изображения категорий? Это займет несколько секунд.')">
+                                <i class="fas fa-sync-alt me-1"></i> Обновить изображения категорий
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
                 <div class="mt-3">
                     <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-1"></i> На главную
@@ -97,4 +145,84 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функция для загрузки статистики изображений
+    function loadImageStats() {
+        fetch('/admin/image-stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Ошибка загрузки статистики:', data.error);
+                    return;
+                }
+                
+                // Создаем или обновляем блок статистики
+                let statsDiv = document.getElementById('image-stats');
+                if (!statsDiv) {
+                    statsDiv = document.createElement('div');
+                    statsDiv.id = 'image-stats';
+                    statsDiv.className = 'card mt-3';
+                    statsDiv.innerHTML = `
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-chart-bar me-1"></i> Статистика изображений</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Блюда:</h6>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: ${data.dish_image_percentage}%">
+                                            ${data.dish_image_percentage}%
+                                        </div>
+                                    </div>
+                                    <small>${data.dishes_with_images} из ${data.total_dishes} блюд имеют изображения</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Категории:</h6>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: ${data.category_image_percentage}%">
+                                            ${data.category_image_percentage}%
+                                        </div>
+                                    </div>
+                                    <small>${data.categories_with_images} из ${data.total_categories} категорий имеют изображения</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.querySelector('.card-body').appendChild(statsDiv);
+                } else {
+                    // Обновляем существующий блок
+                    statsDiv.querySelector('.progress-bar.bg-success').style.width = data.dish_image_percentage + '%';
+                    statsDiv.querySelector('.progress-bar.bg-success').textContent = data.dish_image_percentage + '%';
+                    statsDiv.querySelector('.col-md-6:first-child small').textContent = 
+                        `${data.dishes_with_images} из ${data.total_dishes} блюд имеют изображения`;
+                    
+                    statsDiv.querySelector('.progress-bar.bg-info').style.width = data.category_image_percentage + '%';
+                    statsDiv.querySelector('.progress-bar.bg-info').textContent = data.category_image_percentage + '%';
+                    statsDiv.querySelector('.col-md-6:last-child small').textContent = 
+                        `${data.categories_with_images} из ${data.total_categories} категорий имеют изображения`;
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки статистики:', error);
+            });
+    }
+    
+    // Загружаем статистику при загрузке страницы
+    loadImageStats();
+    
+    // Обновляем статистику после выполнения действий
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function() {
+            setTimeout(() => {
+                loadImageStats();
+            }, 2000); // Ждем 2 секунды после отправки формы
+        });
+    });
+});
+</script>
 {% endblock %}
