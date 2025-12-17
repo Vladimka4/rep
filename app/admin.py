@@ -3,7 +3,7 @@ from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.form import SecureForm
 from flask_login import login_required, current_user
-from wtforms import PasswordField  # ДОБАВЛЕНО
+from wtforms import PasswordField
 from . import db
 from .models import User, Category, Dish, Order, OrderItem, Favorite
 from .parsers.nsm_parser import NSMParser
@@ -142,10 +142,14 @@ class DishAdminView(SecureModelView):
 
 class OrderAdminView(SecureModelView):
     """Админка для заказов"""
-    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'customer']
-    
-    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'customer']
-    
+    # ВЕРНУЛИ 'user' вместо 'customer'
+    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'user']
+    column_searchable_list = ['customer_name', 'address', 'phone']
+    column_filters = ['status', 'created_at']
+    column_sortable_list = ['id', 'total', 'created_at']
+    # ВЕРНУЛИ 'user' вместо 'customer'
+    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'user']
+    can_create = False  # Заказы создаются только через сайт
     column_labels = {
         'customer_name': 'Имя клиента',
         'address': 'Адрес',
@@ -153,7 +157,7 @@ class OrderAdminView(SecureModelView):
         'total': 'Сумма',
         'status': 'Статус',
         'created_at': 'Дата создания',
-        'customer': 'Пользователь' 
+        'user': 'Пользователь'
     }
 
 # Инициализация Flask-Admin
