@@ -68,20 +68,30 @@ def create_app(config_class=Config):
         return User.query.get(int(user_id))
     
     # Регистрация Blueprints
-    with app.app_context():
-        from .routes import main
-        from .auth import auth
-        from .user import user
-        from .admin import admin_bp
-        
-        app.register_blueprint(main)
-        app.register_blueprint(auth, url_prefix='/auth')
-        app.register_blueprint(user, url_prefix='/user')
+    from .routes import main
+    from .auth import auth
+    from .user import user
+    
+    app.register_blueprint(main)
+    app.register_blueprint(auth, url_prefix='/auth')
+    app.register_blueprint(user, url_prefix='/user')
+    
+    # Инициализация админ-панели Flask-Admin
+    try:
+        from .admin import init_admin, admin_bp
+        # Регистрируем Blueprint для парсинга
         app.register_blueprint(admin_bp)
-        
-        # Регистрация CLI команд
-        from .commands import init_app as commands_init
-        commands_init(app)
+        # Инициализируем Flask-Admin
+        init_admin(app)
+        app.logger.info("Flask-Admin панель инициализирована")
+    except ImportError as e:
+        app.logger.error(f"Ошибка импорта админ-панели: {e}")
+    except Exception as e:
+        app.logger.error(f"Ошибка инициализации админ-панели: {e}")
+    
+    # Регистрация CLI команд
+    from .commands import init_app as commands_init
+    commands_init(app)
     
     # Создание таблиц БД и администратора в контексте приложения
     with app.app_context():
