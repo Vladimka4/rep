@@ -61,6 +61,28 @@ def parse_nsm_action():
             flash('Не удалось получить меню', 'danger')
     
     return redirect(url_for('admin_parsing.parse_nsm'))
+@admin_parsing_bp.route('/download-images', methods=['POST'])
+@login_required
+def download_images():
+    if not current_user.is_admin:
+        flash('Доступ запрещен', 'danger')
+        return redirect(url_for('main.index'))
+    
+    from .parsers.nsm_parser import download_nsm_images
+    
+    limit = request.form.get('limit', 5, type=int)
+    
+    try:
+        success = download_nsm_images(limit=limit)
+        if success:
+            flash(f'Изображения успешно загружены (максимум {limit})', 'success')
+        else:
+            flash('Не удалось загрузить изображения', 'warning')
+    except Exception as e:
+        logger.error(f"Ошибка загрузки изображений: {e}")
+        flash(f'Ошибка при загрузке изображений: {e}', 'danger')
+    
+    return redirect(url_for('admin_parsing.parse_nsm'))
 
 # ============================================================================
 # 2. FLASK-ADMIN панель управления
