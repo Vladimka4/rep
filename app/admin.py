@@ -2,22 +2,19 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.form import SecureForm
-from flask_admin.form.upload import FileUploadField
-from wtforms.fields import PasswordField, TextAreaField
 from flask_login import login_required, current_user
 from . import db
 from .models import User, Category, Dish, Order, OrderItem, Favorite
 from .parsers.nsm_parser import NSMParser
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# 1. BLUEPRINT для парсинга (старый функционал)
+# 1. BLUEPRINT для парсинга
 # ============================================================================
 
-admin_bp = Blueprint('admin_bp', __name__, url_prefix='/admin')
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 @admin_bp.route('/parse-nsm', methods=['GET'])
 @login_required
@@ -60,7 +57,7 @@ def parse_nsm_action():
         else:
             flash('Не удалось получить меню', 'danger')
     
-    return redirect(url_for('admin_bp.parse_nsm'))
+    return redirect(url_for('admin.parse_nsm'))
 
 # ============================================================================
 # 2. FLASK-ADMIN панель управления
@@ -82,7 +79,7 @@ class SecureModelView(ModelView):
 
 class UserAdminView(SecureModelView):
     """Админка для пользователей"""
-    column_list = ['id', 'username', 'is_admin', 'is_active', 'created_at', 'orders_count']
+    column_list = ['id', 'username', 'is_admin', 'is_active', 'created_at']
     column_searchable_list = ['username']
     column_filters = ['is_admin', 'is_active', 'created_at']
     column_sortable_list = ['id', 'username', 'created_at']
@@ -91,48 +88,22 @@ class UserAdminView(SecureModelView):
         'username': 'Имя пользователя',
         'is_admin': 'Администратор',
         'is_active': 'Активен',
-        'created_at': 'Дата регистрации',
-        'orders_count': 'Количество заказов'
+        'created_at': 'Дата регистрации'
     }
-    
-    def scaffold_form(self):
-        form_class = super().scaffold_form()
-        form_class.password = PasswordField('Новый пароль')
-        return form_class
     
     def on_model_change(self, form, model, is_created):
         if form.password.data:
             from . import bcrypt
             model.password_hash = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-    
-    def orders_count_formatter(self, context, model, name):
-        return len(model.orders)
-    
-    column_formatters = {
-        'orders_count': orders_count_formatter
-    }
 
 class CategoryAdminView(SecureModelView):
     """Админка для категорий"""
-    column_list = ['id', 'name', 'image', 'dishes_count']
+    column_list = ['id', 'name', 'image']
     column_searchable_list = ['name']
     form_columns = ['name', 'image']
     column_labels = {
         'name': 'Название',
-        'image': 'Изображение',
-        'dishes_count': 'Количество блюд'
-    }
-    
-    def scaffold_form(self):
-        form_class = super().scaffold_form()
-        # Для простоты делаем обычное текстовое поле для имени файла
-        return form_class
-    
-    def dishes_count_formatter(self, context, model, name):
-        return len(model.dishes)
-    
-    column_formatters = {
-        'dishes_count': dishes_count_formatter
+        'image': 'Изображение'
     }
 
 class DishAdminView(SecureModelView):
@@ -150,11 +121,6 @@ class DishAdminView(SecureModelView):
         'image': 'Изображение',
         'is_available': 'Доступно'
     }
-    
-    def scaffold_form(self):
-        form_class = super().scaffold_form()
-        form_class.description = TextAreaField('Описание')
-        return form_class
     
     def on_model_change(self, form, model, is_created):
         # Очистка описания от лишних пробелов
@@ -180,58 +146,14 @@ class OrderAdminView(SecureModelView):
         'created_at': 'Дата создания',
         'user': 'Пользователь'
     }
-    
-    form_choices = {
-        'status': [
-            ('Новый', 'Новый'),
-            ('В обработке', 'В обработке'),
-            ('Готовится', 'Готовится'),
-            ('В пути', 'В пути'),
-            ('Доставлен', 'Доставлен'),
-            ('Отменен', 'Отменен')
-        ]
-    }
-
-class CustomAdminIndexView(AdminIndexView):
-    """Кастомная главная страница админ-панели Flask-Admin"""
-    @expose('/')
-    def index(self):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            return redirect(url_for('auth.login', next=request.url))
-        
-        # Статистика для админ-панели
-        stats = {
-            'users_count': User.query.count(),
-            'orders_count': Order.query.count(),
-            'dishes_count': Dish.query.count(),
-            'categories_count': Category.query.count(),
-            'today_orders': Order.query.filter(
-                db.func.date(Order.created_at) == db.func.current_date()
-            ).count()
-        }
-        
-        # Последние 5 заказов
-        latest_orders = Order.query.order_by(Order.created_at.desc()).limit(5).all()
-        
-        return self.render('admin/index.html', stats=stats, orders=latest_orders)
-    
-    @expose('/parse-nsm-page')
-    def parse_nsm_page(self):
-        """Страница парсинга (альтернатива Blueprint)"""
-        if not current_user.is_authenticated or not current_user.is_admin:
-            return redirect(url_for('auth.login', next=request.url))
-        
-        return render_template('admin/parse_nsm.html')
 
 # Инициализация Flask-Admin
 flask_admin = Admin(name='Food Delivery Admin', 
                    template_mode='bootstrap4',
-                   index_view=CustomAdminIndexView(),
-                   base_template='admin/master.html',
-                   url='/admin-panel')  # Разный URL чтобы не конфликтовать с Blueprint
+                   url='/admin-panel')
 
-def init_admin_panel(app):
-    """Инициализация админ-панели Flask-Admin"""
+def init_app(app):
+    """Инициализация приложения с Flask-Admin"""
     flask_admin.init_app(app)
     
     # Добавляем представления моделей
@@ -243,15 +165,3 @@ def init_admin_panel(app):
     # Отключаем некоторые вьюшки или добавляем в категорию "Дополнительно"
     flask_admin.add_view(SecureModelView(OrderItem, db.session, name='Позиции заказа', category='Дополнительно'))
     flask_admin.add_view(SecureModelView(Favorite, db.session, name='Избранное', category='Дополнительно'))
-
-# ============================================================================
-# 3. Функция для подключения всего админ-функционала
-# ============================================================================
-
-def init_admin(app):
-    """Инициализация всего админ-функционала"""
-    # 1. Регистрируем Blueprint для парсинга (доступно по /admin/parse-nsm)
-    app.register_blueprint(admin_bp)
-    
-    # 2. Инициализируем Flask-Admin панель (доступно по /admin-panel)
-    init_admin_panel(app)
