@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Парсинг На Старом Месте - Админ{% endblock %}
+{% block title %}Парсинг меню - Админ{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -13,11 +13,10 @@
                 <div class="alert alert-info">
                     <strong><i class="fas fa-info-circle me-1"></i>Информация:</strong><br>
                     • Сайт: nsm-22.ru<br>
-                    • Структура: WordPress + Elementor<br>
                     • Автоматически определяются все разделы меню
                 </div>
                 
-                <form method="POST" action="{{ url_for('admin_bp.parse_nsm_action') }}">
+                <form method="POST" action="{{ url_for('admin_parsing.parse_nsm_action') }}">
                     <div class="mb-3">
                         <label class="form-label">URL главной страницы (опционально)</label>
                         <input type="url" class="form-control" name="base_url" 
@@ -45,25 +44,10 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-download me-1"></i> Начать парсинг
                     </button>
-                    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-1"></i> В админ-панель
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> На главную
                     </a>
                 </form>
-                
-                <div class="mt-4">
-                    <h6><i class="fas fa-database me-1"></i>Структура данных:</h6>
-                    <ul class="list-group list-group-flush mb-3">
-                        <li class="list-group-item"><strong>Категории:</strong> Разделы меню (салаты, закуски и т.д.)</li>
-                        <li class="list-group-item"><strong>Блюда:</strong> Название, цена, вес, изображение</li>
-                        <li class="list-group-item"><strong>Изображения:</strong> Автоматически скачиваются и сохраняются локально</li>
-                    </ul>
-                    
-                    <h6 class="mt-3"><i class="fas fa-exclamation-triangle me-1"></i>Предупреждение:</h6>
-                    <div class="alert alert-warning">
-                        <i class="fas fa-clock me-1"></i> Парсинг может занять несколько минут в зависимости от количества блюд.
-                        Не закрывайте страницу до завершения операции.
-                    </div>
-                </div>
             </div>
         </div>
     </div>
