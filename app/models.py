@@ -19,12 +19,18 @@ class User(UserMixin, db.Model):
     
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     image = db.Column(db.String(200))
     dishes = db.relationship('Dish', backref='category', lazy=True)
+    
+    def __repr__(self):
+        return f'<Category {self.name}>'
 
 class Dish(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -36,23 +42,33 @@ class Dish(db.Model):
     is_available = db.Column(db.Boolean, default=True)
     
     favorites = db.relationship('Favorite', backref='dish', lazy='dynamic')
+    
+    def __repr__(self):
+        return f'<Dish {self.name}>'
 
 class Favorite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     dish_id = db.Column(db.Integer, db.ForeignKey('dish.id'))
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Favorite user:{self.user_id} dish:{self.dish_id}>'
 
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.Text, nullable=False)
+    phone = db.Column(db.String(20), nullable=True)
     total = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='Новый')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
     items = db.relationship('OrderItem', backref='order', lazy=True)
+    
+    def __repr__(self):
+        return f'<Order #{self.id} {self.customer_name}>'
 
 class OrderItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -62,3 +78,6 @@ class OrderItem(db.Model):
     price = db.Column(db.Float, nullable=False)
 
     dish = db.relationship('Dish')
+    
+    def __repr__(self):
+        return f'<OrderItem order:{self.order_id} dish:{self.dish_id}>'
