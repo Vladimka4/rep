@@ -79,7 +79,7 @@ def create_app(config_class=Config):
     # Инициализация админ-панели Flask-Admin и регистрация Blueprint для парсинга
     try:
         from .admin import init_admin, admin_parsing_bp
-        # Регистрируем Blueprint для парсинга с новым именем
+        # Регистрируем Blueprint для парсинга с новым префиксом
         app.register_blueprint(admin_parsing_bp)
         # Инициализируем Flask-Admin
         init_admin(app)
