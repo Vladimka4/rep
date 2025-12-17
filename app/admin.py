@@ -8,6 +8,7 @@ from . import db
 from .models import User, Category, Dish, Order, OrderItem, Favorite
 from .parsers.nsm_parser import NSMParser
 import logging
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -119,19 +120,17 @@ class CategoryAdminView(SecureModelView):
 
 class DishAdminView(SecureModelView):
     """Админка для блюд"""
-    # ВЕРНУЛИ 'category' (теперь работает, т.к. в models.py есть backref='category')
-    column_list = ['id', 'name', 'category', 'price', 'is_available', 'image']
+    # Используем 'category_id' вместо 'category' для избежания конфликта
+    column_list = ['id', 'name', 'category_id', 'price', 'is_available']
     column_searchable_list = ['name', 'description']
-    column_filters = ['is_available', 'category', 'price']
+    column_filters = ['is_available', 'category_id', 'price']
     column_sortable_list = ['name', 'price']
-    # ВЕРНУЛИ 'category'
-    form_columns = ['name', 'description', 'price', 'category', 'image', 'is_available']
+    form_columns = ['name', 'description', 'price', 'category_id', 'is_available']
     column_labels = {
         'name': 'Название',
         'description': 'Описание',
         'price': 'Цена',
-        'category': 'Категория',
-        'image': 'Изображение',
+        'category_id': 'Категория',
         'is_available': 'Доступно'
     }
     
@@ -144,12 +143,10 @@ class DishAdminView(SecureModelView):
 
 class OrderAdminView(SecureModelView):
     """Админка для заказов"""
-    # Убрали 'user' из column_list, т.к. он вызывает конфликты с Flask-Admin
     column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at']
     column_searchable_list = ['customer_name', 'address', 'phone']
     column_filters = ['status', 'created_at']
     column_sortable_list = ['id', 'total', 'created_at']
-    # Убрали 'user' из form_columns
     form_columns = ['customer_name', 'address', 'phone', 'total', 'status']
     can_create = False  # Заказы создаются только через сайт
     column_labels = {
@@ -161,10 +158,40 @@ class OrderAdminView(SecureModelView):
         'created_at': 'Дата создания'
     }
 
+class MyAdminIndexView(AdminIndexView):
+    @expose('/')
+    def index(self):
+        from .models import User, Order, Dish, Category
+        from datetime import datetime
+        
+        # Получаем статистику
+        users_count = User.query.count()
+        orders_count = Order.query.count()
+        dishes_count = Dish.query.count()
+        
+        # Заказы за сегодня
+        today = datetime.now().date()
+        today_orders = Order.query.filter(
+            db.func.date(Order.created_at) == today
+        ).count()
+        
+        # Получаем последние заказы
+        orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
+        
+        stats = {
+            'users_count': users_count,
+            'orders_count': orders_count,
+            'dishes_count': dishes_count,
+            'today_orders': today_orders
+        }
+        
+        return self.render('admin/index.html', stats=stats, orders=orders)
+
 # Инициализация Flask-Admin
 flask_admin = Admin(name='Food Delivery Admin', 
                    template_mode='bootstrap4',
-                   url='/admin-panel')
+                   url='/admin-panel',
+                   index_view=MyAdminIndexView())
 
 def init_admin(app):
     """Инициализация админ-панели"""
