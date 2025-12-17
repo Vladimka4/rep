@@ -14,9 +14,10 @@ logger = logging.getLogger(__name__)
 # 1. BLUEPRINT для парсинга
 # ============================================================================
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+# Изменяем имя Blueprint, чтобы избежать конфликта с Flask-Admin
+admin_parsing_bp = Blueprint('admin_parsing', __name__, url_prefix='/admin')
 
-@admin_bp.route('/parse-nsm', methods=['GET'])
+@admin_parsing_bp.route('/parse-nsm', methods=['GET'])
 @login_required
 def parse_nsm():
     if not current_user.is_admin:
@@ -25,7 +26,7 @@ def parse_nsm():
     
     return render_template('admin/parse_nsm.html')
 
-@admin_bp.route('/parse-nsm-action', methods=['POST'])
+@admin_parsing_bp.route('/parse-nsm-action', methods=['POST'])
 @login_required
 def parse_nsm_action():
     if not current_user.is_admin:
@@ -57,7 +58,7 @@ def parse_nsm_action():
         else:
             flash('Не удалось получить меню', 'danger')
     
-    return redirect(url_for('admin.parse_nsm'))
+    return redirect(url_for('admin_parsing.parse_nsm'))
 
 # ============================================================================
 # 2. FLASK-ADMIN панель управления
