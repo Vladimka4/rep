@@ -71,12 +71,14 @@ def create_app(config_class=Config):
     from .routes import main
     from .auth import auth
     from .user import user
-    from .admin import admin
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(user, url_prefix='/user')
-    app.register_blueprint(admin, url_prefix='/admin')
+    
+    # Инициализация админ-панели и парсинга
+    from .admin import init_admin
+    init_admin(app)
     
     # Регистрация CLI команд
     from .commands import init_app as commands_init
@@ -89,7 +91,7 @@ def create_app(config_class=Config):
             db.create_all()
             app.logger.info("Таблицы БД созданы/проверены")
             
-            # Создание администратора (как было)
+            # Создание администратора
             from .models import User
             admin_user = User.query.filter_by(username='admin').first()
             if not admin_user:
@@ -100,8 +102,9 @@ def create_app(config_class=Config):
                 admin_user.set_password('25102510')
                 db.session.add(admin_user)
                 db.session.commit()
-                app.logger.info("Администратор создан")
+                app.logger.info("Администратор создан (логин: admin, пароль: 25102510)")
                 
         except Exception as e:
             app.logger.error(f"Ошибка инициализации БД: {e}")
+    
     return app
