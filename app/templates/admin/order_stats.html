@@ -1,0 +1,211 @@
+{% extends 'admin/master.html' %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1><i class="fas fa-chart-bar me-2"></i>Статистика заказов</h1>
+            <p class="lead">Аналитика по заказам и выручке</p>
+        </div>
+    </div>
+    
+    <!-- Основная статистика -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Всего заказов</h6>
+                            <h2 class="mb-0">{{ stats.total_orders }}</h2>
+                        </div>
+                        <i class="fas fa-shopping-cart fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Общая выручка</h6>
+                            <h2 class="mb-0">{{ "%.2f"|format(stats.total_revenue) }} ₽</h2>
+                        </div>
+                        <i class="fas fa-money-bill-wave fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Заказов сегодня</h6>
+                            <h2 class="mb-0">{{ stats.orders_today }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-day fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Выручка сегодня</h6>
+                            <h2 class="mb-0">{{ "%.2f"|format(stats.revenue_today) }} ₽</h2>
+                        </div>
+                        <i class="fas fa-chart-line fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Статистика по статусам -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Статистика по статусам заказов</h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.status_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Статус</th>
+                                    <th>Количество</th>
+                                    <th>Выручка</th>
+                                    <th>Доля</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in stats.status_stats %}
+                                <tr>
+                                    <td>
+                                        {% if item.status == 'Новый' %}
+                                        <span class="badge bg-primary">{{ item.status }}</span>
+                                        {% elif item.status == 'В обработке' %}
+                                        <span class="badge bg-warning">{{ item.status }}</span>
+                                        {% elif item.status == 'Готовится' %}
+                                        <span class="badge bg-info">{{ item.status }}</span>
+                                        {% elif item.status == 'В пути' %}
+                                        <span class="badge bg-secondary">{{ item.status }}</span>
+                                        {% elif item.status == 'Доставлен' %}
+                                        <span class="badge bg-success">{{ item.status }}</span>
+                                        {% elif item.status == 'Отменен' %}
+                                        <span class="badge bg-danger">{{ item.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-dark">{{ item.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.count }}</td>
+                                    <td>{{ "%.2f"|format(item.revenue or 0) }} ₽</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            {% set total_count = stats.status_stats|sum(attribute='count') %}
+                                            {% set percentage = (item.count / total_count * 100) if total_count > 0 else 0 %}
+                                            <div class="progress-bar" 
+                                                 style="width: {{ percentage }}%; 
+                                                        background-color: {% if item.status == 'Новый' %}#0d6efd{% elif item.status == 'В обработке' %}#ffc107{% elif item.status == 'Готовится' %}#0dcaf0{% elif item.status == 'В пути' %}#6c757d{% elif item.status == 'Доставлен' %}#198754{% elif item.status == 'Отменен' %}#dc3545{% else %}#212529{% endif %}">
+                                                {{ "%.1f"|format(percentage) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">Нет данных по статусам</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Заказы по дням -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Заказы по дням</h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.orders_by_date %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Количество заказов</th>
+                                    <th>Выручка</th>
+                                    <th>Средний чек</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in stats.orders_by_date %}
+                                <tr>
+                                    <td>{{ item.date.strftime('%d.%m.%Y') }}</td>
+                                    <td>{{ item.count }}</td>
+                                    <td>{{ "%.2f"|format(item.revenue or 0) }} ₽</td>
+                                    <td>
+                                        {% if item.count > 0 %}
+                                        {{ "%.2f"|format((item.revenue or 0) / item.count) }} ₽
+                                        {% else %}
+                                        0 ₽
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">Нет данных о заказах</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Быстрые действия -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('order.index_view') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-shopping-cart mr-2"></i> Управление заказами
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/admin" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-arrow-left mr-2"></i> Назад в панель
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/admin/user-stats" class="btn btn-outline-info w-100">
+                                <i class="fas fa-users mr-2"></i> Статистика пользователей
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
