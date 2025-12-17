@@ -30,6 +30,7 @@
                         
                         <form method="POST" action="{{ url_for('user_bp.remove_favorite', favorite_id=favorite.id) }}" 
                               class="d-inline">
+                            {{ csrf_token() if csrf_token else '' }}
                             <button type="submit" class="btn btn-danger" 
                                     onclick="return confirm('Удалить из избранного?')">
                                 Удалить
