@@ -27,7 +27,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     image = db.Column(db.String(200))
-    dishes = db.relationship('Dish', backref='category_rel', lazy=True)  # ИЗМЕНЕНО: backref='category_rel'
+    dishes = db.relationship('Dish', backref='category', lazy=True)  # ВЕРНУЛИ обратно 'category'
     
     def __repr__(self):
         return f'<Category {self.name}>'
@@ -42,15 +42,6 @@ class Dish(db.Model):
     is_available = db.Column(db.Boolean, default=True)
     
     favorites = db.relationship('Favorite', backref='dish', lazy='dynamic')
-    
-    # ДОБАВЛЕНО: свойство для обратной совместимости
-    @property
-    def category(self):
-        return self.category_rel
-    
-    @category.setter
-    def category(self, value):
-        self.category_rel = value
     
     def __repr__(self):
         return f'<Dish {self.name}>'
