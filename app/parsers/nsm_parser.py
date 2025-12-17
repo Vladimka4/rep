@@ -10,6 +10,7 @@ from decimal import Decimal
 import logging
 import tempfile
 from pathlib import Path
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class NSMParser:
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
         }
-        self.timeout = 10  # Уменьшили таймаут
+        self.timeout = 10
     
     def safe_float(self, price_str):
         """Безопасное преобразование строки в float"""
@@ -181,7 +182,7 @@ class NSMParser:
                 if weight_elem:
                     description = self.clean_text(weight_elem.get_text(strip=True))
             
-            # Изображение - только сохраняем URL, не скачиваем
+            # Изображение - сохраняем URL для последующей загрузки
             image_url = None
             prodimg = column.find('div', class_='prodimg')
             if prodimg:
@@ -239,7 +240,7 @@ class NSMParser:
                     if weight_text:
                         description = self.clean_text(weight_text.get_text(strip=True))
                 
-                # Изображение - только URL
+                # Изображение
                 img_elem = img_div.find('img')
                 image_url = None
                 if img_elem and img_elem.get('src'):
@@ -260,64 +261,87 @@ class NSMParser:
         return dishes
     
     def _download_image(self, url):
-        """Скачивает изображение и сохраняет локально - ЗАКОММЕНТИРОВАНО ДЛЯ СКОРОСТИ"""
-        return None  # Не скачиваем изображения для скорости
-        
-        # try:
-        #     if not url:
-        #         return None
+        """Скачивает изображение и сохраняет локально"""
+        try:
+            if not url:
+                logger.debug("Пустой URL изображения")
+                return None
             
-        #     response = requests.get(url, headers=self.headers, timeout=self.timeout)
-        #     response.raise_for_status()
+            # Пропускаем placeholder изображения
+            if 'placeholder' in url or 'nophoto' in url:
+                logger.debug(f"Пропускаем placeholder: {url}")
+                return None
             
-        #     # Проверяем Content-Type
-        #     content_type = response.headers.get('content-type', '')
-        #     if 'image' not in content_type:
-        #         logger.warning(f"URL не является изображением: {content_type}")
-        #         return None
+            # Ограничиваем размер загружаемых изображений
+            response = requests.get(url, headers=self.headers, timeout=5, stream=True)
+            response.raise_for_status()
             
-        #     # Генерируем безопасное имя файла
-        #     file_hash = hashlib.md5(url.encode()).hexdigest()[:10]
-        #     file_name = f"nsm_{file_hash}.jpg"
+            # Проверяем Content-Type
+            content_type = response.headers.get('content-type', '')
+            if 'image' not in content_type:
+                logger.warning(f"URL не является изображением: {content_type}")
+                return None
             
-        #     # Определяем путь для сохранения
-        #     static_path = Path('app/static/images')
+            # Ограничиваем размер файла (макс 500KB)
+            content_length = int(response.headers.get('content-length', 0))
+            if content_length > 500 * 1024:  # 500KB
+                logger.warning(f"Изображение слишком большое: {content_length} bytes")
+                return None
             
-        #     # Проверяем существование директории, создаем если нужно
-        #     if not static_path.exists():
-        #         try:
-        #             static_path.mkdir(parents=True, exist_ok=True)
-        #         except Exception as e:
-        #             logger.warning(f"Не удалось создать директорию {static_path}: {e}")
-        #             # Пробуем сохранить во временную директорию
-        #             temp_path = Path(tempfile.gettempdir()) / 'food_delivery_images'
-        #             temp_path.mkdir(parents=True, exist_ok=True)
-        #             file_path = temp_path / file_name
-        #         else:
-        #             file_path = static_path / file_name
-        #     else:
-        #         file_path = static_path / file_name
+            # Генерируем безопасное имя файла
+            file_hash = hashlib.md5(url.encode()).hexdigest()[:10]
+            file_name = f"nsm_{file_hash}.jpg"
             
-        #     # Сохраняем файл
-        #     with open(file_path, 'wb') as f:
-        #         f.write(response.content)
+            # Определяем путь для сохранения
+            static_path = Path('app/static/images')
             
-        #     # Проверяем размер файла
-        #     if file_path.stat().st_size == 0:
-        #         logger.warning(f"Пустой файл изображения: {file_name}")
-        #         return None
+            # Проверяем существование директории, создаем если нужно
+            if not static_path.exists():
+                try:
+                    static_path.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Создана директория: {static_path}")
+                except Exception as e:
+                    logger.warning(f"Не удалось создать директорию {static_path}: {e}")
+                    return None
+            else:
+                # Проверяем, не существует ли уже файл
+                file_path = static_path / file_name
+                if file_path.exists():
+                    logger.debug(f"Файл уже существует: {file_name}")
+                    return file_name
             
-        #     return file_name
+            file_path = static_path / file_name
             
-        # except requests.exceptions.RequestException as e:
-        #     logger.warning(f"Ошибка загрузки изображения {url}: {e}")
-        #     return None
-        # except Exception as e:
-        #     logger.warning(f"Ошибка сохранения изображения {url}: {e}")
-        #     return None
+            # Сохраняем файл частями
+            with open(file_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            # Проверяем размер файла
+            if file_path.stat().st_size == 0:
+                logger.warning(f"Пустой файл изображения: {file_name}")
+                try:
+                    file_path.unlink()
+                except:
+                    pass
+                return None
+            
+            logger.info(f"Изображение сохранено: {file_name} ({file_path.stat().st_size} bytes)")
+            return file_name
+            
+        except requests.exceptions.Timeout:
+            logger.warning(f"Таймаут при загрузке изображения: {url}")
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Ошибка загрузки изображения {url}: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Ошибка сохранения изображения {url}: {e}")
+            return None
     
     def parse_all_menu(self):
-        """Парсит все меню ресторана"""
+        """Парсит все меню ресторана (только текст, без загрузки изображений)"""
         try:
             sections = self.get_menu_sections()
             logger.info(f"Найдено разделов меню: {len(sections)}")
@@ -333,8 +357,7 @@ class NSMParser:
                     dish['section_url'] = section['url']
                     all_dishes.append(dish)
                 
-                import time
-                time.sleep(0.2)  # Уменьшили задержку до 0.2 секунды
+                time.sleep(0.2)  # Уменьшенная задержка
             
             # Удаляем дубликаты
             unique_dishes = []
@@ -353,7 +376,7 @@ class NSMParser:
             return []
     
     def save_to_database(self, dishes):
-        """Сохраняет спарсенные блюда в базу данных - УСКОРЕННАЯ ВЕРСИЯ БЕЗ ЗАГРУЗКИ ИЗОБРАЖЕНИЙ"""
+        """Сохраняет спарсенные блюда в базу данных (только текст)"""
         try:
             category_map = {}
             added_count = 0
@@ -387,14 +410,14 @@ class NSMParser:
                     if description and len(description) > 500:
                         description = description[:497] + '...'
                     
-                    # НЕ загружаем изображения для скорости!
+                    # Сохраняем блюдо БЕЗ изображения (оно будет загружено позже)
                     dish = Dish(
                         name=name,
                         description=description,
                         price=dish_data['price'],
                         category_id=category.id,
                         is_available=True,
-                        image=None  # НЕ загружаем изображения!
+                        image=None  # Изображение будет загружено отдельно
                     )
                     db.session.add(dish)
                     added_count += 1
@@ -402,16 +425,134 @@ class NSMParser:
                     skipped_count += 1
             
             db.session.commit()
-            logger.info(f"Сохранено {added_count} блюд, пропущено {skipped_count} дубликатов")
+            logger.info(f"Сохранено {added_count} блюд (без изображений), пропущено {skipped_count} дубликатов")
             return True
             
         except Exception as e:
             db.session.rollback()
             logger.error(f"Ошибка сохранения в базу: {e}")
             return False
+    
+    def download_images(self, limit=None):
+        """Загружает изображения для блюд, у которых их нет"""
+        try:
+            # Получаем блюда без изображений
+            query = Dish.query.filter(Dish.image.is_(None))
+            if limit:
+                query = query.limit(limit)
+            
+            dishes_without_images = query.all()
+            
+            logger.info(f"Найдено {len(dishes_without_images)} блюд без изображений")
+            
+            if not dishes_without_images:
+                return 0
+            
+            downloaded_count = 0
+            
+            for dish in dishes_without_images:
+                # Для каждого блюда нужно получить URL изображения из базы
+                # Но у нас нет поля image_url в модели, поэтому нам нужно как-то хранить URL
+                # Или нужно парсить заново с сохранением URL
+                
+                # Вместо этого, создадим временный парсер для поиска изображения
+                # Это не оптимально, но для демонстрации сойдет
+                
+                # Для каждого блюда получим категорию и попробуем найти изображение
+                category = Category.query.get(dish.category_id)
+                if not category:
+                    continue
+                
+                # Парсим раздел для поиска изображения
+                logger.info(f"Поиск изображения для: {dish.name}")
+                
+                # Получаем URL раздела из статичного списка
+                section_url = self._get_section_url_by_name(category.name)
+                if not section_url:
+                    continue
+                
+                # Парсим раздел и ищем изображение для этого блюда
+                image_url = self._find_image_url_for_dish(section_url, dish.name)
+                if image_url:
+                    # Загружаем изображение
+                    image_filename = self._download_image(image_url)
+                    if image_filename:
+                        dish.image = image_filename
+                        downloaded_count += 1
+                        logger.info(f"  Загружено изображение для: {dish.name}")
+                        
+                        # Коммитим после каждого успешного сохранения
+                        db.session.commit()
+                        
+                        # Пауза между загрузками
+                        time.sleep(1)
+            
+            return downloaded_count
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Ошибка при загрузке изображений: {e}")
+            return 0
+    
+    def _get_section_url_by_name(self, section_name):
+        """Получает URL раздела по его имени"""
+        sections_mapping = {
+            'Салаты': 'https://nsm-22.ru/salaty/',
+            'Закуски': 'https://nsm-22.ru/zakuski/',
+            'Горячие закуски': 'https://nsm-22.ru/goryachie-zakuski/',
+            'Супы': 'https://nsm-22.ru/supy/',
+            'Паста': 'https://nsm-22.ru/pasta/',
+            'Лепка': 'https://nsm-22.ru/lepka/',
+            'Рыба': 'https://nsm-22.ru/ryba/',
+            'Мясо и птица': 'https://nsm-22.ru/myaso-i-ptitsa/',
+            'Гарниры': 'https://nsm-22.ru/garniry/',
+            'Десерты': 'https://nsm-22.ru/deserty/',
+            'Детское меню': 'https://nsm-22.ru/detskoe-menyu/',
+        }
+        return sections_mapping.get(section_name)
+    
+    def _find_image_url_for_dish(self, section_url, dish_name):
+        """Находит URL изображения для конкретного блюда"""
+        try:
+            response = requests.get(section_url, headers=self.headers, timeout=self.timeout)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Ищем все блюда в разделе
+            prodline_sections = soup.find_all('section', class_='prodline')
+            
+            for prodline in prodline_sections:
+                columns = prodline.find_all('div', class_='elementor-column')
+                
+                for column in columns:
+                    # Ищем название блюда
+                    prodhead = column.find('div', class_='prodhead')
+                    if not prodhead:
+                        continue
+                    
+                    name_elem = prodhead.find('h2', class_='elementor-heading-title')
+                    if not name_elem:
+                        continue
+                    
+                    name = self.clean_text(name_elem.get_text(strip=True))
+                    
+                    # Если нашли нужное блюдо
+                    if name == dish_name:
+                        # Ищем изображение
+                        prodimg = column.find('div', class_='prodimg')
+                        if prodimg:
+                            img_elem = prodimg.find('img')
+                            if img_elem and img_elem.get('src'):
+                                return urljoin(self.base_url, img_elem['src'])
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Ошибка при поиске изображения для {dish_name}: {e}")
+            return None
 
 def parse_nsm_menu():
-    """Основная функция для парсинга меню"""
+    """Основная функция для парсинга меню (только текст)"""
     parser = NSMParser()
     dishes = parser.parse_all_menu()
     
@@ -431,18 +572,32 @@ def parse_nsm_menu():
         return []
 
 def save_nsm_menu_to_db():
-    """Парсит и сохраняет меню в БД - УСКОРЕННАЯ ВЕРСИЯ"""
+    """Парсит и сохраняет меню в БД (только текст)"""
     parser = NSMParser()
     dishes = parser.parse_all_menu()
     
     if dishes:
         success = parser.save_to_database(dishes)
         if success:
-            logger.info(f"✅ Меню успешно сохранено в базу данных ({len(dishes)} блюд)")
+            logger.info(f"✅ Текст меню успешно сохранено в базу данных ({len(dishes)} блюд)")
             return True
         else:
             logger.error("❌ Ошибка при сохранении в базу данных")
             return False
     else:
         logger.error("❌ Не удалось получить меню для сохранения")
+        return False
+
+def download_nsm_images(limit=5):
+    """Загружает изображения для блюд"""
+    parser = NSMParser()
+    
+    logger.info(f"Начинаю загрузку изображений (максимум {limit})...")
+    downloaded = parser.download_images(limit=limit)
+    
+    if downloaded > 0:
+        logger.info(f"✅ Загружено {downloaded} изображений")
+        return True
+    else:
+        logger.info("❌ Не удалось загрузить изображения")
         return False
