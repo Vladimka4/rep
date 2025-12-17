@@ -14,7 +14,7 @@
     {% for dish in dishes %}
     <div class="col-md-4 mb-4">
         <div class="card h-100">
-            <img src="{{ url_for('static', filename='images/' + dish.image) if dish.image else 'https://via.placeholder.com/300' }}" 
+            <img src="{% if dish.image %}{{ url_for('static', filename='images/' + dish.image) }}{% else %}https://via.placeholder.com/300?text=Без+изображения{% endif %}" 
                  class="card-img-top" alt="{{ dish.name }}" style="height: 200px; object-fit: cover;">
             <div class="card-body d-flex flex-column">
                 <h5 class="card-title">{{ dish.name }}</h5>
@@ -43,6 +43,16 @@
     </div>
     {% endfor %}
 </div>
+
+{% if not dishes %}
+<div class="text-center py-5">
+    <h3>В этой категории пока нет блюд</h3>
+    <p class="text-muted">Попробуйте другие категории</p>
+    <a href="{{ url_for('main.index') }}" class="btn btn-primary mt-3">
+        На главную
+    </a>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -70,11 +80,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         // Создаем бейдж если его нет
                         const cartBtn = document.querySelector('a[href="/cart"]');
-                        const badge = document.createElement('span');
-                        badge.id = 'cart-count';
-                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
-                        badge.textContent = data.cart_total;
-                        cartBtn.appendChild(badge);
+                        if (cartBtn) {
+                            const badge = document.createElement('span');
+                            badge.id = 'cart-count';
+                            badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+                            badge.textContent = data.cart_total;
+                            cartBtn.appendChild(badge);
+                        }
                     }
                     
                     // Показываем уведомление
@@ -124,6 +136,25 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    
+    // Функция показа уведомления
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 3000);
+    }
 });
 </script>
 {% endblock %}
