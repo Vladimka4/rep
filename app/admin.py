@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 # 1. BLUEPRINT для парсинга
 # ============================================================================
 
-# Изменяем имя Blueprint, чтобы избежать конфликта с Flask-Admin
 admin_parsing_bp = Blueprint('admin_parsing', __name__, url_prefix='/admin-parsing')
 
 @admin_parsing_bp.route('/parse-nsm', methods=['GET'])
@@ -166,13 +165,6 @@ class SecureModelView(ModelView):
         return current_user.is_authenticated and current_user.is_admin
     
     def inaccessible_callback(self, name, **kwargs):
-        # Перенаправляем на страницу входа, если пользователь не аутентифицирован
-        if not current_user.is_authenticated:
-            from flask import request
-            from flask_login import current_user
-            from . import login_manager
-            return login_manager.unauthorized()
-        # Перенаправляем на главную, если пользователь не админ
         flash('У вас нет прав для доступа к этой странице.', 'danger')
         return redirect(url_for('main.index'))
 
@@ -183,10 +175,8 @@ class UserAdminView(SecureModelView):
     column_filters = ['is_admin', 'is_active', 'created_at']
     column_sortable_list = ['id', 'username', 'created_at']
     
-    # УДАЛЕНО: 'password' из form_columns
     form_columns = ['username', 'is_admin', 'is_active']
     
-    # ДОБАВЛЕНО: кастомное поле для пароля
     form_extra_fields = {
         'password': PasswordField('Новый пароль (оставьте пустым, чтобы не менять)')
     }
@@ -199,7 +189,6 @@ class UserAdminView(SecureModelView):
     }
     
     def on_model_change(self, form, model, is_created):
-        # Если введен новый пароль, хешируем его
         if form.password.data:
             from . import bcrypt
             model.password_hash = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
@@ -216,7 +205,6 @@ class CategoryAdminView(SecureModelView):
 
 class DishAdminView(SecureModelView):
     """Админка для блюд"""
-    # Используем 'category_id' вместо 'category' для избежания конфликта
     column_list = ['id', 'name', 'category_id', 'price', 'is_available']
     column_searchable_list = ['name', 'description']
     column_filters = ['is_available', 'category_id', 'price']
@@ -231,10 +219,8 @@ class DishAdminView(SecureModelView):
     }
     
     def on_model_change(self, form, model, is_created):
-        # Очистка описания от лишних пробелов
         if model.description:
             model.description = model.description.strip()
-        # Округление цены до 2 знаков
         model.price = round(model.price, 2)
 
 class OrderAdminView(SecureModelView):
@@ -244,7 +230,7 @@ class OrderAdminView(SecureModelView):
     column_filters = ['status', 'created_at']
     column_sortable_list = ['id', 'total', 'created_at']
     form_columns = ['customer_name', 'address', 'phone', 'total', 'status']
-    can_create = False  # Заказы создаются только через сайт
+    can_create = False
     column_labels = {
         'customer_name': 'Имя клиента',
         'address': 'Адрес',
@@ -259,11 +245,8 @@ class MyAdminIndexView(AdminIndexView):
         return current_user.is_authenticated and current_user.is_admin
     
     def inaccessible_callback(self, name, **kwargs):
-        # Перенаправляем на страницу входа, если пользователь не аутентифицирован
         if not current_user.is_authenticated:
-            from flask import request
-            return redirect(url_for('auth.login', next=request.url))
-        # Перенаправляем на главную, если пользователь не админ
+            return redirect(url_for('auth.login', next='/admin'))
         flash('У вас нет прав для доступа к этой странице.', 'danger')
         return redirect(url_for('main.index'))
     
@@ -272,18 +255,15 @@ class MyAdminIndexView(AdminIndexView):
         from .models import User, Order, Dish, Category
         from datetime import datetime
         
-        # Получаем статистику
         users_count = User.query.count()
         orders_count = Order.query.count()
         dishes_count = Dish.query.count()
         
-        # Заказы за сегодня
         today = datetime.now().date()
         today_orders = Order.query.filter(
             db.func.date(Order.created_at) == today
         ).count()
         
-        # Получаем последние заказы
         orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
         
         stats = {
@@ -299,20 +279,16 @@ class MyAdminIndexView(AdminIndexView):
 flask_admin = Admin(name='Food Delivery Admin', 
                    template_mode='bootstrap4',
                    url='/admin',
-                   index_view=MyAdminIndexView(),
-                   endpoint='flask_admin')
+                   index_view=MyAdminIndexView())
 
 def init_admin(app):
     """Инициализация админ-панели"""
-    # Инициализируем Flask-Admin
     flask_admin.init_app(app)
     
-    # Добавляем представления моделей
     flask_admin.add_view(UserAdminView(User, db.session, name='Пользователи', category='Основные'))
     flask_admin.add_view(CategoryAdminView(Category, db.session, name='Категории', category='Основные'))
     flask_admin.add_view(DishAdminView(Dish, db.session, name='Блюда', category='Основные'))
     flask_admin.add_view(OrderAdminView(Order, db.session, name='Заказы', category='Основные'))
     
-    # Отключаем некоторые вьюшки или добавляем в категорию "Дополнительно"
     flask_admin.add_view(SecureModelView(OrderItem, db.session, name='Позиции заказа', category='Дополнительно'))
     flask_admin.add_view(SecureModelView(Favorite, db.session, name='Избранное', category='Дополнительно'))
