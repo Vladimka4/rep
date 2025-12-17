@@ -82,4 +82,51 @@ body {
     .card-img-top {
         height: 150px;
     }
+
 }
+/* Стили для таймлайна заказа */
+.timeline {
+    position: relative;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: #e9ecef;
+    z-index: 1;
+}
+
+.timeline-icon {
+    position: relative;
+    z-index: 2;
+    border: 3px solid white;
+}
+
+.timeline-icon.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.timeline-icon.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.timeline-icon.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.timeline-icon.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.timeline-icon.bg-success {
+    background-color: #198754 !important;
+}
+
+.timeline-icon.bg-danger {
+    background-color: #dc3545 !important;
+}
+[file content end]
