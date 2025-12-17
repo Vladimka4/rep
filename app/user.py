@@ -8,10 +8,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# ИЗМЕНЕНО: переименовали blueprint с 'user' на 'user_bp'
+user_bp = Blueprint('user_bp', __name__)
 
-user_bp = Blueprint('user_bp', __name__)  
-
-@user_bp.route('/profile', methods=['GET', 'POST'])  
+@user_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     try:
@@ -29,7 +29,7 @@ def profile():
                 current_user.username = form.username.data
                 db.session.commit()
                 flash('Ваш профиль успешно обновлен!', 'success')
-                return redirect(url_for('user_bp.profile'))  
+                return redirect(url_for('user_bp.profile'))
         
         elif request.method == 'GET':
             form.username.data = current_user.username
@@ -46,7 +46,7 @@ def profile():
         flash('Ошибка загрузки профиля', 'danger')
         return redirect(url_for('main.index'))
 
-@user_bp.route('/orders')  
+@user_bp.route('/orders')
 @login_required
 def orders():
     try:
@@ -58,9 +58,9 @@ def orders():
     except Exception as e:
         logger.error(f"Ошибка загрузки заказов пользователя {current_user.id}: {str(e)}")
         flash('Ошибка загрузки заказов', 'danger')
-        return redirect(url_for('user_bp.profile')) 
+        return redirect(url_for('user_bp.profile'))
 
-@user_bp.route('/order/<int:order_id>')  
+@user_bp.route('/order/<int:order_id>')
 @login_required
 def order_detail(order_id):
     try:
@@ -70,13 +70,13 @@ def order_detail(order_id):
         
         if order.user_id != current_user.id and not current_user.is_admin:
             flash('У вас нет доступа к этому заказу.', 'danger')
-            return redirect(url_for('user_bp.orders'))  
+            return redirect(url_for('user_bp.orders'))
         
         return render_template('user/order_detail.html', order=order)
     except Exception as e:
         logger.error(f"Ошибка загрузки заказа {order_id}: {str(e)}")
         flash('Ошибка загрузки деталей заказа', 'danger')
-        return redirect(url_for('user_bp.orders')) 
+        return redirect(url_for('user_bp.orders'))
 
 @user_bp.route('/favorites')
 @login_required
@@ -94,7 +94,7 @@ def favorites():
         flash('Ошибка загрузки избранного', 'danger')
         return redirect(url_for('main.index'))
 
-@user_bp.route('/remove_favorite/<int:favorite_id>', methods=['POST']) 
+@user_bp.route('/remove_favorite/<int:favorite_id>', methods=['POST'])
 @login_required
 def remove_favorite(favorite_id):
     try:
@@ -107,8 +107,8 @@ def remove_favorite(favorite_id):
         db.session.commit()
         
         flash('Удалено из избранного', 'success')
-        return redirect(url_for('user_bp.favorites')) 
+        return redirect(url_for('user_bp.favorites'))
     except Exception as e:
         logger.error(f"Ошибка удаления избранного {favorite_id}: {str(e)}")
         flash('Ошибка удаления из избранного', 'danger')
-        return redirect(url_for('user_bp.favorites'))  
+        return redirect(url_for('user_bp.favorites'))
