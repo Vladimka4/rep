@@ -66,13 +66,13 @@
                             {% if current_user.is_admin %}
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item" href="/admin-panel/">
+                                <a class="dropdown-item" href="{{ url_for('flask_admin.index') }}">
                                     <i class="fas fa-cogs me-2"></i>Админ-панель
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('admin_parsing.parse_nsm') }}">
-                                    <i class="fas fa-download me-2"></i>Парсинг меню и изображений
+                                    <i class="fas fa-download me-2"></i>Парсинг меню
                                 </a>
                             </li>
                             {% endif %}
