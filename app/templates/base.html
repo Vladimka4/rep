@@ -54,13 +54,13 @@
                             <i class="fas fa-user me-1"></i>{{ current_user.username }}
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('user.profile') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('user_bp.profile') }}">
                                 <i class="fas fa-user-circle me-2"></i>Профиль
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('user.orders') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('user_bp.orders') }}">
                                 <i class="fas fa-history me-2"></i>Мои заказы
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('user.favorites') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('user_bp.favorites') }}">
                                 <i class="fas fa-heart me-2"></i>Избранное
                             </a></li>
                             {% if current_user.is_admin %}
@@ -145,3 +145,4 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
+
