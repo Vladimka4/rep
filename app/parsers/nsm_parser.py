@@ -601,6 +601,7 @@ def download_nsm_images(limit=5):
     else:
         logger.info("❌ Не удалось загрузить изображения")
         return False
+
 def update_category_images_from_dishes():
     """Обновляет изображения категорий на основе первого блюда в категории"""
     try:
@@ -613,7 +614,10 @@ def update_category_images_from_dishes():
             # Находим первое блюдо в категории с изображением
             first_dish_with_image = Dish.query.filter_by(
                 category_id=category.id
-            ).filter(Dish.image.isnot(None)).first()
+            ).filter(
+                Dish.image.isnot(None),
+                Dish.image != ''
+            ).first()
             
             if first_dish_with_image and first_dish_with_image.image:
                 # Обновляем изображение категории
