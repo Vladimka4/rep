@@ -285,6 +285,7 @@ def init_admin(app):
     """Инициализация админ-панели"""
     flask_admin.init_app(app)
     
+    # Добавляем представления моделей с явными endpoint
     flask_admin.add_view(UserAdminView(User, db.session, name='Пользователи', category='Основные', endpoint='admin_user'))
     flask_admin.add_view(CategoryAdminView(Category, db.session, name='Категории', category='Основные', endpoint='admin_category'))
     flask_admin.add_view(DishAdminView(Dish, db.session, name='Блюда', category='Основные', endpoint='admin_dish'))
