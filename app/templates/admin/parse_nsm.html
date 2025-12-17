@@ -13,43 +13,86 @@
                 <div class="alert alert-info">
                     <strong><i class="fas fa-info-circle me-1"></i>Информация:</strong><br>
                     • Сайт: nsm-22.ru<br>
-                    • Автоматически определяются все разделы меню
+                    • Автоматически определяются все разделы меню<br>
+                    • <strong>Рекомендация:</strong> Сначала парсите текст, затем загружайте изображения отдельно
                 </div>
                 
-                <form method="POST" action="{{ url_for('admin_parsing.parse_nsm_action') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">URL главной страницы (опционально)</label>
-                        <input type="url" class="form-control" name="base_url" 
-                               value="https://nsm-22.ru/" placeholder="https://nsm-22.ru/">
-                        <small class="form-text text-muted">
-                            Оставьте значение по умолчанию для парсинга всего меню
-                        </small>
+                <!-- Форма для парсинга текста -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">Парсинг текста меню</h6>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Или выберите конкретный раздел</label>
-                        <select class="form-control" name="specific_section">
-                            <option value="">Весь сайт (автоматический поиск)</option>
-                            <option value="https://nsm-22.ru/salaty/">Салаты</option>
-                            <option value="https://nsm-22.ru/zakuski/">Закуски</option>
-                            <option value="https://nsm-22.ru/goryachie-zakuski/">Горячие закуски</option>
-                            <option value="https://nsm-22.ru/supy/">Супы</option>
-                            <option value="https://nsm-22.ru/pasta/">Паста</option>
-                            <option value="https://nsm-22.ru/ryba/">Рыба</option>
-                            <option value="https://nsm-22.ru/myaso-i-ptitsa/">Мясо и птица</option>
-                            <option value="https://nsm-22.ru/deserty/">Десерты</option>
-                        </select>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('admin_parsing.parse_nsm_action') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div class="mb-3">
+                                <label class="form-label">URL главной страницы (опционально)</label>
+                                <input type="url" class="form-control" name="base_url" 
+                                       value="https://nsm-22.ru/" placeholder="https://nsm-22.ru/">
+                                <small class="form-text text-muted">
+                                    Оставьте значение по умолчанию для парсинга всего меню
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Или выберите конкретный раздел</label>
+                                <select class="form-control" name="specific_section">
+                                    <option value="">Весь сайт (автоматический поиск)</option>
+                                    <option value="https://nsm-22.ru/salaty/">Салаты</option>
+                                    <option value="https://nsm-22.ru/zakuski/">Закуски</option>
+                                    <option value="https://nsm-22.ru/goryachie-zakuski/">Горячие закуски</option>
+                                    <option value="https://nsm-22.ru/supy/">Супы</option>
+                                    <option value="https://nsm-22.ru/pasta/">Паста</option>
+                                    <option value="https://nsm-22.ru/ryba/">Рыба</option>
+                                    <option value="https://nsm-22.ru/myaso-i-ptitsa/">Мясо и птица</option>
+                                    <option value="https://nsm-22.ru/deserty/">Десерты</option>
+                                </select>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-download me-1"></i> Парсить текст меню
+                            </button>
+                        </form>
                     </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-download me-1"></i> Начать парсинг
-                    </button>
+                </div>
+                
+                <!-- Форма для загрузки изображений -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">Загрузка изображений</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('admin_parsing.download_images') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Количество изображений для загрузки</label>
+                                <input type="number" class="form-control" name="limit" 
+                                       value="5" min="1" max="20">
+                                <small class="form-text text-muted">
+                                    Рекомендуется загружать по 5-10 изображений за раз<br>
+                                    Из-за ограничений Render большие загрузки могут вызывать таймауты
+                                </small>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <strong>Внимание:</strong> Загрузка изображений может занимать время.<br>
+                                Убедитесь, что сначала спарсены блюда (текст), а затем загружайте изображения.
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-image me-1"></i> Загрузить изображения
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
                     <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-1"></i> На главную
                     </a>
-                </form>
+                </div>
             </div>
         </div>
     </div>
