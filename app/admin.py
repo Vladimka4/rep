@@ -142,12 +142,10 @@ class DishAdminView(SecureModelView):
 
 class OrderAdminView(SecureModelView):
     """Админка для заказов"""
-    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'user']
-    column_searchable_list = ['customer_name', 'address', 'phone']
-    column_filters = ['status', 'created_at']
-    column_sortable_list = ['id', 'total', 'created_at']
-    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'user']
-    can_create = False  # Заказы создаются только через сайт
+    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'customer']
+    
+    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'customer']
+    
     column_labels = {
         'customer_name': 'Имя клиента',
         'address': 'Адрес',
@@ -155,7 +153,7 @@ class OrderAdminView(SecureModelView):
         'total': 'Сумма',
         'status': 'Статус',
         'created_at': 'Дата создания',
-        'user': 'Пользователь'
+        'customer': 'Пользователь' 
     }
 
 # Инициализация Flask-Admin
