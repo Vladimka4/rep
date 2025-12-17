@@ -119,16 +119,18 @@ class CategoryAdminView(SecureModelView):
 
 class DishAdminView(SecureModelView):
     """Админка для блюд"""
-    column_list = ['id', 'name', 'category', 'price', 'is_available', 'image']
+    # ИЗМЕНЕНО: 'category' → 'category_id'
+    column_list = ['id', 'name', 'category_id', 'price', 'is_available', 'image']
     column_searchable_list = ['name', 'description']
-    column_filters = ['is_available', 'category.name', 'price']
+    column_filters = ['is_available', 'category_id', 'price']
     column_sortable_list = ['name', 'price']
-    form_columns = ['name', 'description', 'price', 'category', 'image', 'is_available']
+    # ИЗМЕНЕНО: 'category' → 'category_id'
+    form_columns = ['name', 'description', 'price', 'category_id', 'image', 'is_available']
     column_labels = {
         'name': 'Название',
         'description': 'Описание',
         'price': 'Цена',
-        'category': 'Категория',
+        'category_id': 'Категория',
         'image': 'Изображение',
         'is_available': 'Доступно'
     }
@@ -142,13 +144,13 @@ class DishAdminView(SecureModelView):
 
 class OrderAdminView(SecureModelView):
     """Админка для заказов"""
-    # ВЕРНУЛИ 'user' вместо 'customer'
-    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'user']
+    # ИСПРАВЛЕНО: 'user' → правильное отношение
+    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at']
     column_searchable_list = ['customer_name', 'address', 'phone']
     column_filters = ['status', 'created_at']
     column_sortable_list = ['id', 'total', 'created_at']
-    # ВЕРНУЛИ 'user' вместо 'customer'
-    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'user']
+    # ИСПРАВЛЕНО: удалили 'user' из form_columns
+    form_columns = ['customer_name', 'address', 'phone', 'total', 'status']
     can_create = False  # Заказы создаются только через сайт
     column_labels = {
         'customer_name': 'Имя клиента',
@@ -156,8 +158,7 @@ class OrderAdminView(SecureModelView):
         'phone': 'Телефон',
         'total': 'Сумма',
         'status': 'Статус',
-        'created_at': 'Дата создания',
-        'user': 'Пользователь'
+        'created_at': 'Дата создания'
     }
 
 # Инициализация Flask-Admin
