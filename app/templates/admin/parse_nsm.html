@@ -14,7 +14,8 @@
                     <strong><i class="fas fa-info-circle me-1"></i>Информация:</strong><br>
                     • Сайт: nsm-22.ru<br>
                     • Автоматически определяются все разделы меню<br>
-                    • <strong>Рекомендация:</strong> Сначала парсите текст, затем загружайте изображения отдельно
+                    • <strong>Улучшение:</strong> Блюда с ценой 0 или без цены автоматически удаляются<br>
+                    • <strong>Улучшение:</strong> Изображения не скачиваются повторно
                 </div>
                 
                 <!-- Форма для парсинга текста -->
@@ -50,6 +51,11 @@
                                 </select>
                             </div>
                             
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>Фильтрация:</strong> Блюда с ценой 0 или без цены автоматически удаляются
+                            </div>
+                            
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-download me-1"></i> Парсить текст меню
                             </button>
@@ -60,7 +66,7 @@
                 <!-- Форма для загрузки изображений -->
                 <div class="card mb-4">
                     <div class="card-header bg-success text-white">
-                        <h6 class="mb-0">Загрузка изображений</h6>
+                        <h6 class="mb-0">Загрузка изображений (улучшенная)</h6>
                     </div>
                     <div class="card-body">
                         <form method="POST" action="{{ url_for('admin_parsing.download_images') }}">
@@ -76,9 +82,21 @@
                                 </small>
                             </div>
                             
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="skip_existing" id="skip_existing" checked>
+                                    <label class="form-check-label" for="skip_existing">
+                                        Пропускать уже скачанные изображения
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    <strong>Рекомендуется:</strong> Ускоряет загрузку, не скачивает повторно
+                                </small>
+                            </div>
+                            
                             <div class="alert alert-warning">
-                                <strong>Внимание:</strong> Загрузка изображений может занимать время.<br>
-                                Убедитесь, что сначала спарсены блюда (текст), а затем загружайте изображения.
+                                <strong>Улучшение:</strong> Парсер теперь запоминает уже скачанные изображения<br>
+                                и не скачивает их повторно, даже при повторном запуске.
                             </div>
                             
                             <button type="submit" class="btn btn-success">
