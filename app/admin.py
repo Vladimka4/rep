@@ -152,8 +152,9 @@ flask_admin = Admin(name='Food Delivery Admin',
                    template_mode='bootstrap4',
                    url='/admin-panel')
 
-def init_app(app):
-    """Инициализация приложения с Flask-Admin"""
+def init_admin(app):
+    """Инициализация админ-панели"""
+    # Инициализируем Flask-Admin
     flask_admin.init_app(app)
     
     # Добавляем представления моделей
