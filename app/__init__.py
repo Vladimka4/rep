@@ -70,11 +70,11 @@ def create_app(config_class=Config):
     # Регистрация Blueprints
     from .routes import main
     from .auth import auth
-    from .user import user
+    from .user import user_bp  # ИЗМЕНЕНО: user → user_bp
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
-    app.register_blueprint(user_bp, url_prefix='/user')
+    app.register_blueprint(user_bp, url_prefix='/user')  # ИЗМЕНЕНО: user → user_bp
     
     # Инициализация админ-панели Flask-Admin и регистрация Blueprint для парсинга
     try:
@@ -117,4 +117,3 @@ def create_app(config_class=Config):
             app.logger.error(f"Ошибка инициализации БД: {e}")
     
     return app
-
