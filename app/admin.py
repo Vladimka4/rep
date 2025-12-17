@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.form import SecureForm
@@ -61,6 +61,7 @@ def parse_nsm_action():
             flash('Не удалось получить меню', 'danger')
     
     return redirect(url_for('admin_parsing.parse_nsm'))
+
 @admin_parsing_bp.route('/download-images', methods=['POST'])
 @login_required
 def download_images():
@@ -81,6 +82,71 @@ def download_images():
     except Exception as e:
         logger.error(f"Ошибка загрузки изображений: {e}")
         flash(f'Ошибка при загрузке изображений: {e}', 'danger')
+    
+    return redirect(url_for('admin_parsing.parse_nsm'))
+
+@admin_parsing_bp.route('/image-stats')
+@login_required
+def image_stats():
+    """Статистика по изображениям"""
+    if not current_user.is_admin:
+        flash('Доступ запрещен', 'danger')
+        return redirect(url_for('main.index'))
+    
+    from .models import Category, Dish
+    
+    try:
+        # Статистика по блюдам
+        total_dishes = Dish.query.count()
+        dishes_with_images = Dish.query.filter(
+            Dish.image.isnot(None),
+            Dish.image != ''
+        ).count()
+        
+        # Статистика по категориям
+        total_categories = Category.query.count()
+        categories_with_images = Category.query.filter(
+            Category.image.isnot(None),
+            Category.image != ''
+        ).count()
+        
+        stats = {
+            'total_dishes': total_dishes,
+            'dishes_with_images': dishes_with_images,
+            'total_categories': total_categories,
+            'categories_with_images': categories_with_images,
+            'dish_image_percentage': round((dishes_with_images / total_dishes * 100) if total_dishes > 0 else 0, 1),
+            'category_image_percentage': round((categories_with_images / total_categories * 100) if total_categories > 0 else 0, 1)
+        }
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@admin_parsing_bp.route('/update-category-images', methods=['POST'])
+@login_required
+def update_category_images():
+    """Обновление изображений категорий из блюд"""
+    if not current_user.is_admin:
+        flash('Доступ запрещен', 'danger')
+        return redirect(url_for('main.index'))
+    
+    try:
+        from .parsers.nsm_parser import update_all_category_images
+        
+        logger.info("Начинаю обновление изображений категорий...")
+        updated = update_all_category_images()
+        
+        if updated > 0:
+            flash(f'✅ Обновлено {updated} изображений категорий', 'success')
+        else:
+            flash('⚠️ Не удалось обновить изображения категорий или нечего обновлять', 'warning')
+            
+    except Exception as e:
+        logger.error(f"Ошибка обновления изображений категорий: {e}")
+        flash(f'❌ Ошибка: {str(e)}', 'danger')
     
     return redirect(url_for('admin_parsing.parse_nsm'))
 
