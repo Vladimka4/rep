@@ -285,10 +285,10 @@ def init_admin(app):
     """Инициализация админ-панели"""
     flask_admin.init_app(app)
     
-    flask_admin.add_view(UserAdminView(User, db.session, name='Пользователи', category='Основные'))
-    flask_admin.add_view(CategoryAdminView(Category, db.session, name='Категории', category='Основные'))
-    flask_admin.add_view(DishAdminView(Dish, db.session, name='Блюда', category='Основные'))
-    flask_admin.add_view(OrderAdminView(Order, db.session, name='Заказы', category='Основные'))
+    flask_admin.add_view(UserAdminView(User, db.session, name='Пользователи', category='Основные', endpoint='admin_user'))
+    flask_admin.add_view(CategoryAdminView(Category, db.session, name='Категории', category='Основные', endpoint='admin_category'))
+    flask_admin.add_view(DishAdminView(Dish, db.session, name='Блюда', category='Основные', endpoint='admin_dish'))
+    flask_admin.add_view(OrderAdminView(Order, db.session, name='Заказы', category='Основные', endpoint='admin_order'))
     
-    flask_admin.add_view(SecureModelView(OrderItem, db.session, name='Позиции заказа', category='Дополнительно'))
-    flask_admin.add_view(SecureModelView(Favorite, db.session, name='Избранное', category='Дополнительно'))
+    flask_admin.add_view(SecureModelView(OrderItem, db.session, name='Позиции заказа', category='Дополнительно', endpoint='admin_orderitem'))
+    flask_admin.add_view(SecureModelView(Favorite, db.session, name='Избранное', category='Дополнительно', endpoint='admin_favorite'))
