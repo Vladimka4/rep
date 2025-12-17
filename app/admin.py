@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 # Изменяем имя Blueprint, чтобы избежать конфликта с Flask-Admin
-admin_parsing_bp = Blueprint('admin_parsing', __name__, url_prefix='/admin')
+admin_parsing_bp = Blueprint('admin_parsing', __name__, url_prefix='/admin-parsing')
 
 @admin_parsing_bp.route('/parse-nsm', methods=['GET'])
 @login_required
@@ -166,7 +166,15 @@ class SecureModelView(ModelView):
         return current_user.is_authenticated and current_user.is_admin
     
     def inaccessible_callback(self, name, **kwargs):
-        return redirect(url_for('auth.login', next=request.url))
+        # Перенаправляем на страницу входа, если пользователь не аутентифицирован
+        if not current_user.is_authenticated:
+            from flask import request
+            from flask_login import current_user
+            from . import login_manager
+            return login_manager.unauthorized()
+        # Перенаправляем на главную, если пользователь не админ
+        flash('У вас нет прав для доступа к этой странице.', 'danger')
+        return redirect(url_for('main.index'))
 
 class UserAdminView(SecureModelView):
     """Админка для пользователей"""
@@ -247,6 +255,18 @@ class OrderAdminView(SecureModelView):
     }
 
 class MyAdminIndexView(AdminIndexView):
+    def is_accessible(self):
+        return current_user.is_authenticated and current_user.is_admin
+    
+    def inaccessible_callback(self, name, **kwargs):
+        # Перенаправляем на страницу входа, если пользователь не аутентифицирован
+        if not current_user.is_authenticated:
+            from flask import request
+            return redirect(url_for('auth.login', next=request.url))
+        # Перенаправляем на главную, если пользователь не админ
+        flash('У вас нет прав для доступа к этой странице.', 'danger')
+        return redirect(url_for('main.index'))
+    
     @expose('/')
     def index(self):
         from .models import User, Order, Dish, Category
@@ -278,8 +298,9 @@ class MyAdminIndexView(AdminIndexView):
 # Инициализация Flask-Admin
 flask_admin = Admin(name='Food Delivery Admin', 
                    template_mode='bootstrap4',
-                   url='/admin-panel',
-                   index_view=MyAdminIndexView())
+                   url='/admin',
+                   index_view=MyAdminIndexView(),
+                   endpoint='flask_admin')
 
 def init_admin(app):
     """Инициализация админ-панели"""
