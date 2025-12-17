@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Заказ #{{ order.id }} - Food Delivery{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-1">Заказ #{{ order.id }}</h1>
+                <p class="text-muted">от {{ order.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+            </div>
+            <a href="{{ url_for('user_bp.orders') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Назад к заказам
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Информация о заказе -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Информация о заказе</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Номер заказа:</th>
+                            <td><strong>#{{ order.id }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Дата создания:</th>
+                            <td>{{ order.created_at.strftime('%d.%m.%Y в %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Статус:</th>
+                            <td>
+                                {% if order.status == 'Новый' %}
+                                <span class="badge bg-primary">{{ order.status }}</span>
+                                {% elif order.status == 'В обработке' %}
+                                <span class="badge bg-warning">{{ order.status }}</span>
+                                {% elif order.status == 'В пути' %}
+                                <span class="badge bg-info">{{ order.status }}</span>
+                                {% elif order.status == 'Доставлен' %}
+                                <span class="badge bg-success">{{ order.status }}</span>
+                                {% elif order.status == 'Отменен' %}
+                                <span class="badge bg-danger">{{ order.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ order.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Сумма заказа:</th>
+                            <td><strong class="fs-4">{{ order.total }} ₽</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Информация о доставке -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-truck me-2"></i>Доставка</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Получатель:</th>
+                            <td>{{ order.customer_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Адрес:</th>
+                            <td>{{ order.address }}</td>
+                        </tr>
+                        <tr>
+                            <th>Телефон:</th>
+                            <td>
+                                {% if order.phone %}
+                                {{ order.phone }}
+                                {% else %}
+                                <span class="text-muted">Не указан</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Состав заказа -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Состав заказа</h5>
+            </div>
+            <div class="card-body">
+                {% if order.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th width="5%">#</th>
+                                <th width="10%">Фото</th>
+                                <th>Блюдо</th>
+                                <th width="15%" class="text-center">Количество</th>
+                                <th width="15%" class="text-end">Цена за шт.</th>
+                                <th width="15%" class="text-end">Сумма</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <img src="{{ url_for('static', filename='images/' + item.dish.image) if item.dish.image else 'https://via.placeholder.com/100?text=Нет+фото' }}" 
+                                         class="img-fluid rounded" 
+                                         style="width: 60px; height: 60px; object-fit: cover;"
+                                         alt="{{ item.dish.name }}">
+                                </td>
+                                <td>
+                                    <strong>{{ item.dish.name }}</strong>
+                                    {% if item.dish.description %}
+                                    <br>
+                                    <small class="text-muted">{{ item.dish.description[:50] }}{% if item.dish.description|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ item.quantity }} шт.</td>
+                                <td class="text-end">{{ item.price }} ₽</td>
+                                <td class="text-end">{{ item.price * item.quantity }} ₽</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-group-divider">
+                            <tr>
+                                <td colspan="4"></td>
+                                <td class="text-end"><strong>Итого:</strong></td>
+                                <td class="text-end"><strong class="fs-5">{{ order.total }} ₽</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">В заказе нет товаров</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Информация о статусе доставки -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>История статусов</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    {% set statuses = [
+                        {'status': 'Новый', 'icon': 'fas fa-file-alt', 'color': 'primary'},
+                        {'status': 'В обработке', 'icon': 'fas fa-cog', 'color': 'warning'},
+                        {'status': 'Готовится', 'icon': 'fas fa-utensils', 'color': 'info'},
+                        {'status': 'В пути', 'icon': 'fas fa-truck', 'color': 'secondary'},
+                        {'status': 'Доставлен', 'icon': 'fas fa-check-circle', 'color': 'success'},
+                        {'status': 'Отменен', 'icon': 'fas fa-times-circle', 'color': 'danger'}
+                    ] %}
+                    
+                    <div class="d-flex align-items-center mb-3">
+                        {% for status_info in statuses %}
+                        <div class="d-flex flex-column align-items-center position-relative" style="flex: 1;">
+                            <div class="timeline-step">
+                                <div class="timeline-icon bg-{{ status_info.color }} 
+                                    {% if loop.index <= statuses|selectattr('status')|list.index(order.status) + 1 %}active{% endif %}">
+                                    <i class="{{ status_info.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="timeline-content mt-2 text-center">
+                                <small class="d-block fw-bold">{{ status_info.status }}</small>
+                                {% if status_info.status == order.status %}
+                                <small class="text-{{ status_info.color }}">Текущий статус</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Действия -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('user_bp.orders') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Назад к списку
+            </a>
+            
+            {% if current_user.is_admin %}
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-cog me-1"></i> Изменить статус
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">В обработке</a></li>
+                    <li><a class="dropdown-item" href="#">Готовится</a></li>
+                    <li><a class="dropdown-item" href="#">В пути</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-success" href="#">Доставлен</a></li>
+                    <li><a class="dropdown-item text-danger" href="#">Отменить</a></li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.timeline-step {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.timeline-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.timeline-icon.active {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 5px rgba(var(--bs-primary-rgb), 0.2);
+}
+
+.timeline-icon:not(.active) {
+    opacity: 0.5;
+}
+
+.timeline-content {
+    font-size: 0.85rem;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+</style>
+{% endblock %}
