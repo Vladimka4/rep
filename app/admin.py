@@ -3,6 +3,7 @@ from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.form import SecureForm
 from flask_login import login_required, current_user
+from wtforms import PasswordField  # ДОБАВЛЕНО
 from . import db
 from .models import User, Category, Dish, Order, OrderItem, Favorite
 from .parsers.nsm_parser import NSMParser
@@ -84,7 +85,15 @@ class UserAdminView(SecureModelView):
     column_searchable_list = ['username']
     column_filters = ['is_admin', 'is_active', 'created_at']
     column_sortable_list = ['id', 'username', 'created_at']
-    form_columns = ['username', 'password', 'is_admin', 'is_active']
+    
+    # УДАЛЕНО: 'password' из form_columns
+    form_columns = ['username', 'is_admin', 'is_active']
+    
+    # ДОБАВЛЕНО: кастомное поле для пароля
+    form_extra_fields = {
+        'password': PasswordField('Новый пароль (оставьте пустым, чтобы не менять)')
+    }
+    
     column_labels = {
         'username': 'Имя пользователя',
         'is_admin': 'Администратор',
@@ -93,6 +102,7 @@ class UserAdminView(SecureModelView):
     }
     
     def on_model_change(self, form, model, is_created):
+        # Если введен новый пароль, хешируем его
         if form.password.data:
             from . import bcrypt
             model.password_hash = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
