@@ -1,3 +1,5 @@
+[file name]: base.html (исправленные ссылки в навигации)
+[file content begin]
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -66,7 +68,7 @@
                             {% if current_user.is_admin %}
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('flask_admin.index') }}">
+                                <a class="dropdown-item" href="/admin">
                                     <i class="fas fa-cogs me-2"></i>Админ-панель
                                 </a>
                             </li>
@@ -145,3 +147,4 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
+[file content end]
