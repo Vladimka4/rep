@@ -1,0 +1,147 @@
+{% extends 'admin/master.html' %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1><i class="fas fa-chart-bar me-2"></i>Статистика пользователей</h1>
+            <p class="lead">Аналитика по пользователям системы</p>
+        </div>
+    </div>
+    
+    <!-- Основная статистика -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Всего пользователей</h6>
+                            <h2 class="mb-0">{{ stats.total_users }}</h2>
+                        </div>
+                        <i class="fas fa-users fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Активных</h6>
+                            <h2 class="mb-0">{{ stats.active_users }}</h2>
+                        </div>
+                        <i class="fas fa-user-check fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Администраторов</h6>
+                            <h2 class="mb-0">{{ stats.admin_users }}</h2>
+                        </div>
+                        <i class="fas fa-user-shield fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Новых за 7 дней</h6>
+                            <h2 class="mb-0">{{ stats.new_users }}</h2>
+                        </div>
+                        <i class="fas fa-user-plus fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Диаграмма регистраций -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Регистрации пользователей по дням</h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.users_by_date %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Количество регистраций</th>
+                                    <th>Прогресс</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in stats.users_by_date %}
+                                <tr>
+                                    <td>{{ item.date.strftime('%d.%m.%Y') }}</td>
+                                    <td>{{ item.count }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            {% set max_count = stats.users_by_date|map(attribute='count')|max %}
+                                            {% set percentage = (item.count / max_count * 100) if max_count > 0 else 0 %}
+                                            <div class="progress-bar bg-info" role="progressbar" 
+                                                 style="width: {{ percentage }}%">
+                                                {{ item.count }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">Нет данных о регистрациях</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Быстрые действия -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('user.index_view') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-users mr-2"></i> Управление пользователями
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/admin/user/new/" class="btn btn-outline-success w-100">
+                                <i class="fas fa-user-plus mr-2"></i> Добавить пользователя
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="/admin" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-arrow-left mr-2"></i> Назад в панель
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
