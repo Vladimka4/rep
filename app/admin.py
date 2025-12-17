@@ -9,7 +9,7 @@ from . import db
 from .models import User, Category, Dish, Order, OrderItem, Favorite
 from .parsers.nsm_parser import NSMParser
 import logging
-from datetime import date, datetime, timedelta  # ИСПРАВЛЕНО: добавлен timedelta
+from datetime import date, datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def download_images():
     from .parsers.nsm_parser import download_nsm_images
     
     limit = request.form.get('limit', 5, type=int)
-    skip_existing = request.form.get('skip_existing', 'true') == 'true'  # НОВЫЙ параметр
+    skip_existing = request.form.get('skip_existing', 'true') == 'true'
     
     try:
         success = download_nsm_images(limit=limit, skip_existing=skip_existing)
@@ -276,13 +276,13 @@ class DishAdminView(SecureModelView):
 class OrderAdminView(SecureModelView):
     """Админка для заказов"""
     # Используем 'admin_order' как endpoint для Order
-    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'user']
+    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'customer']  # ИЗМЕНЕНО: 'user' -> 'customer'
     column_searchable_list = ['customer_name', 'address', 'phone']
     column_filters = ['status', 'created_at', 'total']
     column_sortable_list = ['id', 'total', 'created_at']
     column_default_sort = ('created_at', True)
     
-    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'user']
+    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'customer']  # ИЗМЕНЕНО: 'user' -> 'customer'
     can_create = False  # Заказы создаются только через сайт
     
     # Добавляем возможность изменения статуса
@@ -305,13 +305,13 @@ class OrderAdminView(SecureModelView):
         'total': 'Сумма',
         'status': 'Статус',
         'created_at': 'Дата создания',
-        'user': 'Пользователь'
+        'customer': 'Пользователь'  # ИЗМЕНЕНО: 'user' -> 'customer'
     }
     
     column_formatters = {
         'created_at': lambda v, c, m, p: m.created_at.strftime('%d.%m.%Y %H:%M'),
         'total': lambda v, c, m, p: f"{m.total} ₽",
-        'user': lambda v, c, m, p: m.user.username if m.user else 'Гость'
+        'customer': lambda v, c, m, p: m.customer.username if m.customer else 'Гость'  # ИЗМЕНЕНО: m.user -> m.customer
     }
     
     def on_model_change(self, form, model, is_created):
@@ -397,7 +397,7 @@ class MyAdminIndexView(AdminIndexView):
         ).count()
         
         # Заказы за последнюю неделю
-        week_ago = datetime.now().date() - timedelta(days=7)  # ИСПРАВЛЕНО: убрано datetime.
+        week_ago = datetime.now().date() - timedelta(days=7)
         recent_orders = Order.query.filter(
             Order.created_at >= week_ago
         ).count()
