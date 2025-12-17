@@ -17,7 +17,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('flask_admin.index') }}">
+            <a class="navbar-brand" href="/admin">
                 <i class="fas fa-cogs me-2"></i>{{ admin_view.admin.name }}
             </a>
             
@@ -28,7 +28,7 @@
             <div class="collapse navbar-collapse" id="adminNavbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('flask_admin.index') }}">
+                        <a class="nav-link" href="/admin">
                             <i class="fas fa-home"></i> Главная
                         </a>
                     </li>
