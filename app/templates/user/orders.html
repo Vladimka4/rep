@@ -63,7 +63,7 @@
     <ul class="pagination justify-content-center">
         {% if orders.has_prev %}
         <li class="page-item">
-            <a class="page-link" href="{{ url_for('user.orders', page=orders.prev_num) }}">Назад</a>
+            <a class="page-link" href="{{ url_for('user_bp.orders', page=orders.prev_num) }}">Назад</a>
         </li>
         {% endif %}
         
