@@ -68,21 +68,20 @@ def create_app(config_class=Config):
         return User.query.get(int(user_id))
     
     # Регистрация Blueprints
-    from .routes import main
-    from .auth import auth
-    from .user import user
-    
-    app.register_blueprint(main)
-    app.register_blueprint(auth, url_prefix='/auth')
-    app.register_blueprint(user, url_prefix='/user')
-    
-    # Инициализация админ-панели и парсинга
-    from .admin import init_admin
-    init_admin(app)
-    
-    # Регистрация CLI команд
-    from .commands import init_app as commands_init
-    commands_init(app)
+    with app.app_context():
+        from .routes import main
+        from .auth import auth
+        from .user import user
+        from .admin import admin_bp
+        
+        app.register_blueprint(main)
+        app.register_blueprint(auth, url_prefix='/auth')
+        app.register_blueprint(user, url_prefix='/user')
+        app.register_blueprint(admin_bp)
+        
+        # Регистрация CLI команд
+        from .commands import init_app as commands_init
+        commands_init(app)
     
     # Создание таблиц БД и администратора в контексте приложения
     with app.app_context():
