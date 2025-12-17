@@ -18,12 +18,10 @@ csrf = CSRFProtect()
 def setup_logging(app):
     """Настройка логирования"""
     if not app.debug:
-        # Создаем директорию для логов
         log_dir = 'logs'
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         
-        # Файловый обработчик
         file_handler = RotatingFileHandler(
             os.path.join(log_dir, 'app.log'),
             maxBytes=10240,
@@ -39,13 +37,11 @@ def setup_logging(app):
         app.logger.setLevel(logging.INFO)
         app.logger.info('Food Delivery запущен')
     
-    # Консольный обработчик
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(formatter)
     
-    # Добавляем обработчик к корневому логгеру
     logging.getLogger().addHandler(console_handler)
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -53,7 +49,6 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
     
-    # Настройка логирования
     setup_logging(app)
     
     db.init_app(app)
@@ -61,27 +56,22 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     csrf.init_app(app)
     
-    # Загрузчик пользователя
     @login_manager.user_loader
     def load_user(user_id):
         from .models import User
         return User.query.get(int(user_id))
     
-    # Регистрация Blueprints
     from .routes import main
     from .auth import auth
-    from .user import user_bp  # ИЗМЕНЕНО: user → user_bp
+    from .user import user_bp
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
-    app.register_blueprint(user_bp, url_prefix='/user')  # ИЗМЕНЕНО: user → user_bp
+    app.register_blueprint(user_bp, url_prefix='/user')
     
-    # Инициализация админ-панели Flask-Admin и регистрация Blueprint для парсинга
     try:
         from .admin import init_admin, admin_parsing_bp
-        # Регистрируем Blueprint для парсинга с новым префиксом
         app.register_blueprint(admin_parsing_bp)
-        # Инициализируем Flask-Admin
         init_admin(app)
         app.logger.info("Flask-Admin панель и Blueprint для парсинга инициализированы")
     except ImportError as e:
@@ -89,18 +79,14 @@ def create_app(config_class=Config):
     except Exception as e:
         app.logger.error(f"Ошибка инициализации админ-панели: {e}")
     
-    # Регистрация CLI команд
     from .commands import init_app as commands_init
     commands_init(app)
     
-    # Создание таблиц БД и администратора в контексте приложения
     with app.app_context():
         try:
-            # Создаем таблицы
             db.create_all()
             app.logger.info("Таблицы БД созданы/проверены")
             
-            # Создание администратора
             from .models import User
             admin_user = User.query.filter_by(username='admin').first()
             if not admin_user:
