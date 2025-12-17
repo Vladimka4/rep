@@ -256,7 +256,7 @@ def checkout():
             session.pop('cart', None)
             
             flash(f'Заказ #{order.id} успешно оформлен!', 'success')
-            return redirect(url_for('user.orders'))
+            return redirect(url_for('user_bp.orders'))
         
         # GET запрос - показываем корзину
         cart_items = []
@@ -288,3 +288,4 @@ def checkout():
         db.session.rollback()
         flash('Ошибка оформления заказа. Пожалуйста, попробуйте позже', 'danger')
         return redirect(url_for('main.cart'))
+
