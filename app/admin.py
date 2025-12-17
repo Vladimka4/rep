@@ -9,7 +9,7 @@ from . import db
 from .models import User, Category, Dish, Order, OrderItem, Favorite
 from .parsers.nsm_parser import NSMParser
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta  # ИСПРАВЛЕНО: добавлен timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +72,14 @@ def download_images():
     from .parsers.nsm_parser import download_nsm_images
     
     limit = request.form.get('limit', 5, type=int)
+    skip_existing = request.form.get('skip_existing', 'true') == 'true'  # НОВЫЙ параметр
     
     try:
-        success = download_nsm_images(limit=limit)
+        success = download_nsm_images(limit=limit, skip_existing=skip_existing)
         if success:
-            flash(f'Изображения успешно загружены (максимум {limit})', 'success')
+            flash(f'Изображения успешно загружены (максимум {limit}, пропуск существующих: {skip_existing})', 'success')
         else:
-            flash('Не удалось загрузить изображения', 'warning')
+            flash('Не удалось загрузить изображения или все уже загружены', 'warning')
     except Exception as e:
         logger.error(f"Ошибка загрузки изображений: {e}")
         flash(f'Ошибка при загрузке изображений: {e}', 'danger')
@@ -100,7 +101,8 @@ def image_stats():
         total_dishes = Dish.query.count()
         dishes_with_images = Dish.query.filter(
             Dish.image.isnot(None),
-            Dish.image != ''
+            Dish.image != '',
+            Dish.image != 'default.jpg'
         ).count()
         
         # Статистика по категориям
@@ -383,7 +385,6 @@ class MyAdminIndexView(AdminIndexView):
     @expose('/')
     def index(self):
         from .models import User, Order, Dish, Category
-        from datetime import datetime
         
         users_count = User.query.count()
         orders_count = Order.query.count()
@@ -396,7 +397,7 @@ class MyAdminIndexView(AdminIndexView):
         ).count()
         
         # Заказы за последнюю неделю
-        week_ago = datetime.now().date() - datetime.timedelta(days=7)
+        week_ago = datetime.now().date() - timedelta(days=7)  # ИСПРАВЛЕНО: убрано datetime.
         recent_orders = Order.query.filter(
             Order.created_at >= week_ago
         ).count()
@@ -456,7 +457,6 @@ def init_admin(app):
             return redirect(url_for('main.index'))
         
         from .models import User
-        from datetime import datetime, timedelta
         
         # Статистика по пользователям
         total_users = User.query.count()
@@ -491,7 +491,6 @@ def init_admin(app):
             return redirect(url_for('main.index'))
         
         from .models import Order
-        from datetime import datetime, timedelta
         
         # Общая статистика
         total_orders = Order.query.count()
