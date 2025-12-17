@@ -76,14 +76,14 @@ def create_app(config_class=Config):
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(user, url_prefix='/user')
     
-    # Инициализация админ-панели Flask-Admin
+    # Инициализация админ-панели Flask-Admin и регистрация Blueprint для парсинга
     try:
-        from .admin import init_admin, admin_bp
-        # Регистрируем Blueprint для парсинга
-        app.register_blueprint(admin_bp)
+        from .admin import init_admin, admin_parsing_bp
+        # Регистрируем Blueprint для парсинга с новым именем
+        app.register_blueprint(admin_parsing_bp)
         # Инициализируем Flask-Admin
         init_admin(app)
-        app.logger.info("Flask-Admin панель инициализирована")
+        app.logger.info("Flask-Admin панель и Blueprint для парсинга инициализированы")
     except ImportError as e:
         app.logger.error(f"Ошибка импорта админ-панели: {e}")
     except Exception as e:
