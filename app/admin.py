@@ -119,18 +119,18 @@ class CategoryAdminView(SecureModelView):
 
 class DishAdminView(SecureModelView):
     """Админка для блюд"""
-    # ИЗМЕНЕНО: 'category' → 'category_id'
-    column_list = ['id', 'name', 'category_id', 'price', 'is_available', 'image']
+    # ВЕРНУЛИ 'category' (теперь работает, т.к. в models.py есть backref='category')
+    column_list = ['id', 'name', 'category', 'price', 'is_available', 'image']
     column_searchable_list = ['name', 'description']
-    column_filters = ['is_available', 'category_id', 'price']
+    column_filters = ['is_available', 'category', 'price']
     column_sortable_list = ['name', 'price']
-    # ИЗМЕНЕНО: 'category' → 'category_id'
-    form_columns = ['name', 'description', 'price', 'category_id', 'image', 'is_available']
+    # ВЕРНУЛИ 'category'
+    form_columns = ['name', 'description', 'price', 'category', 'image', 'is_available']
     column_labels = {
         'name': 'Название',
         'description': 'Описание',
         'price': 'Цена',
-        'category_id': 'Категория',
+        'category': 'Категория',
         'image': 'Изображение',
         'is_available': 'Доступно'
     }
@@ -144,12 +144,12 @@ class DishAdminView(SecureModelView):
 
 class OrderAdminView(SecureModelView):
     """Админка для заказов"""
-    # ИСПРАВЛЕНО: 'user' → правильное отношение
+    # Убрали 'user' из column_list, т.к. он вызывает конфликты с Flask-Admin
     column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at']
     column_searchable_list = ['customer_name', 'address', 'phone']
     column_filters = ['status', 'created_at']
     column_sortable_list = ['id', 'total', 'created_at']
-    # ИСПРАВЛЕНО: удалили 'user' из form_columns
+    # Убрали 'user' из form_columns
     form_columns = ['customer_name', 'address', 'phone', 'total', 'status']
     can_create = False  # Заказы создаются только через сайт
     column_labels = {
