@@ -72,18 +72,6 @@ body {
     object-fit: cover;
 }
 
-/* Адаптивность */
-@media (max-width: 768px) {
-    .container {
-        padding-left: 15px;
-        padding-right: 15px;
-    }
-    
-    .card-img-top {
-        height: 150px;
-    }
-
-}
 /* Стили для таймлайна заказа */
 .timeline {
     position: relative;
@@ -129,4 +117,15 @@ body {
 .timeline-icon.bg-danger {
     background-color: #dc3545 !important;
 }
-[file content end]
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .card-img-top {
+        height: 150px;
+    }
+}
