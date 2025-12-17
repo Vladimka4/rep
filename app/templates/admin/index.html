@@ -1,0 +1,170 @@
+{% extends 'admin/master.html' %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1><i class="fas fa-cogs me-2"></i>Панель управления Food Delivery</h1>
+            <p class="lead">Добро пожаловать в админ-панель, {{ current_user.username }}!</p>
+        </div>
+    </div>
+    
+    <!-- Статистика -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Пользователи</h6>
+                            <h2 class="mb-0">{{ stats.users_count }}</h2>
+                        </div>
+                        <i class="fas fa-users fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Заказы</h6>
+                            <h2 class="mb-0">{{ stats.orders_count }}</h2>
+                        </div>
+                        <i class="fas fa-shopping-cart fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Блюда</h6>
+                            <h2 class="mb-0">{{ stats.dishes_count }}</h2>
+                        </div>
+                        <i class="fas fa-utensils fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Заказов сегодня</h6>
+                            <h2 class="mb-0">{{ stats.today_orders }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-day fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Быстрые действия -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('user.index_view') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-users mr-2"></i> Управление пользователями
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('dish.index_view') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-utensils mr-2"></i> Управление блюдами
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('order.index_view') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-shopping-cart mr-2"></i> Управление заказами
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('admin_bp.parse_nsm') }}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-download mr-2"></i> Парсинг меню
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Последние заказы -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Последние заказы</h5>
+                    <a href="{{ url_for('order.index_view') }}" class="btn btn-sm btn-primary">
+                        Все заказы <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Клиент</th>
+                                    <th>Адрес</th>
+                                    <th>Сумма</th>
+                                    <th>Статус</th>
+                                    <th>Дата</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                <tr>
+                                    <td>
+                                        <strong>#{{ order.id }}</strong>
+                                    </td>
+                                    <td>{{ order.customer_name }}</td>
+                                    <td>{{ order.address[:30] }}...</td>
+                                    <td>{{ order.total }} ₽</td>
+                                    <td>
+                                        {% if order.status == 'Новый' %}
+                                        <span class="badge bg-primary">{{ order.status }}</span>
+                                        {% elif order.status == 'В обработке' %}
+                                        <span class="badge bg-warning">{{ order.status }}</span>
+                                        {% elif order.status == 'Готовится' %}
+                                        <span class="badge bg-info">{{ order.status }}</span>
+                                        {% elif order.status == 'В пути' %}
+                                        <span class="badge bg-secondary">{{ order.status }}</span>
+                                        {% elif order.status == 'Доставлен' %}
+                                        <span class="badge bg-success">{{ order.status }}</span>
+                                        {% elif order.status == 'Отменен' %}
+                                        <span class="badge bg-danger">{{ order.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-dark">{{ order.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ order.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">Нет заказов</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
