@@ -46,7 +46,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="{{ url_for('user.order_detail', order_id=order.id) }}" 
+                    <a href="{{ url_for('user_bp.order_detail', order_id=order.id) }}" 
                        class="btn btn-sm btn-outline-primary">
                         Подробнее
                     </a>
@@ -75,7 +75,7 @@
                 </li>
                 {% else %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('user.orders', page=page_num) }}">{{ page_num }}</a>
+                    <a class="page-link" href="{{ url_for('user_bp.orders', page=page_num) }}">{{ page_num }}</a>
                 </li>
                 {% endif %}
             {% else %}
@@ -85,7 +85,7 @@
         
         {% if orders.has_next %}
         <li class="page-item">
-            <a class="page-link" href="{{ url_for('user.orders', page=orders.next_num) }}">Вперед</a>
+            <a class="page-link" href="{{ url_for('user_bp.orders', page=orders.next_num) }}">Вперед</a>
         </li>
         {% endif %}
     </ul>
