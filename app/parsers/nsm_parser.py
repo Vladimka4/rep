@@ -601,3 +601,37 @@ def download_nsm_images(limit=5):
     else:
         logger.info("❌ Не удалось загрузить изображения")
         return False
+def update_category_images_from_dishes():
+    """Обновляет изображения категорий на основе первого блюда в категории"""
+    try:
+        from app.models import Category, Dish
+        
+        categories = Category.query.all()
+        updated_count = 0
+        
+        for category in categories:
+            # Находим первое блюдо в категории с изображением
+            first_dish_with_image = Dish.query.filter_by(
+                category_id=category.id
+            ).filter(Dish.image.isnot(None)).first()
+            
+            if first_dish_with_image and first_dish_with_image.image:
+                # Обновляем изображение категории
+                if category.image != first_dish_with_image.image:
+                    category.image = first_dish_with_image.image
+                    updated_count += 1
+                    logger.info(f"Обновлено изображение для категории {category.name}: {first_dish_with_image.image}")
+        
+        db.session.commit()
+        logger.info(f"✅ Обновлено {updated_count} изображений категорий")
+        return updated_count
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Ошибка обновления изображений категорий: {e}")
+        return 0
+
+def update_all_category_images():
+    """Основная функция для обновления всех изображений категорий"""
+    updated = update_category_images_from_dishes()
+    return updated
