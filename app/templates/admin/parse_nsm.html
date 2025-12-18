@@ -14,8 +14,43 @@
                     <strong><i class="fas fa-info-circle me-1"></i>Информация:</strong><br>
                     • Сайт: nsm-22.ru<br>
                     • Автоматически определяются все разделы меню<br>
-                    • <strong>Улучшение:</strong> Блюда с ценой 0 или без цены автоматически удаляются<br>
-                    • <strong>Улучшение:</strong> Изображения не скачиваются повторно
+                    • <strong>Новая система:</strong> URL изображений сохраняются в очередь для загрузки<br>
+                    • <strong>Фильтрация:</strong> Блюда с ценой 0 или без цены автоматически удаляются
+                </div>
+                
+                <!-- Статистика очереди -->
+                <div id="queue-stats" class="card mb-4">
+                    <div class="card-header bg-warning">
+                        <h6 class="mb-0"><i class="fas fa-tasks me-1"></i> Статистика очереди изображений</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3 mb-3">
+                                <div class="bg-light p-3 rounded">
+                                    <h3 id="queue-total">0</h3>
+                                    <small class="text-muted">Всего задач</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="bg-info text-white p-3 rounded">
+                                    <h3 id="queue-pending">0</h3>
+                                    <small>Ожидают</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="bg-success text-white p-3 rounded">
+                                    <h3 id="queue-completed">0</h3>
+                                    <small>Завершено</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="bg-danger text-white p-3 rounded">
+                                    <h3 id="queue-failed">0</h3>
+                                    <small>Ошибок</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Форма для парсинга текста -->
@@ -53,7 +88,7 @@
                             
                             <div class="alert alert-warning">
                                 <i class="fas fa-exclamation-triangle me-1"></i>
-                                <strong>Фильтрация:</strong> Блюда с ценой 0 или без цены автоматически удаляются
+                                <strong>Внимание:</strong> При парсинге URL изображений будут сохранены в очередь для последующей загрузки
                             </div>
                             
                             <button type="submit" class="btn btn-primary">
@@ -63,46 +98,71 @@
                     </div>
                 </div>
                 
-                <!-- Форма для загрузки изображений -->
+                <!-- Управление очередью изображений -->
                 <div class="card mb-4">
                     <div class="card-header bg-success text-white">
-                        <h6 class="mb-0">Загрузка изображений (улучшенная)</h6>
+                        <h6 class="mb-0"><i class="fas fa-images me-1"></i> Управление очередью изображений</h6>
                     </div>
                     <div class="card-body">
-                        <form method="POST" action="{{ url_for('admin_parsing.download_images') }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Количество изображений для загрузки</label>
-                                <input type="number" class="form-control" name="limit" 
-                                       value="5" min="1" max="20">
-                                <small class="form-text text-muted">
-                                    Рекомендуется загружать по 5-10 изображений за раз<br>
-                                    Из-за ограничений Render большие загрузки могут вызывать таймауты
-                                </small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="skip_existing" id="skip_existing" checked>
-                                    <label class="form-check-label" for="skip_existing">
-                                        Пропускать уже скачанные изображения
-                                    </label>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6>Обработка очереди</h6>
+                                        <p class="text-muted small">Загружает изображения из очереди</p>
+                                        <form method="POST" action="{{ url_for('admin_parsing.process_image_queue') }}" 
+                                              class="mb-0">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <div class="mb-3">
+                                                <label class="form-label">Количество для обработки</label>
+                                                <input type="number" class="form-control" name="limit" 
+                                                       value="5" min="1" max="20">
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           name="cleanup" id="cleanup" checked>
+                                                    <label class="form-check-label" for="cleanup">
+                                                        Очищать старые задачи
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-success w-100">
+                                                <i class="fas fa-play me-1"></i> Обработать очередь
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
-                                <small class="form-text text-muted">
-                                    <strong>Рекомендуется:</strong> Ускоряет загрузку, не скачивает повторно
-                                </small>
                             </div>
-                            
-                            <div class="alert alert-warning">
-                                <strong>Улучшение:</strong> Парсер теперь запоминает уже скачанные изображения<br>
-                                и не скачивает их повторно, даже при повторном запуске.
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6>Очистка очереди</h6>
+                                        <p class="text-muted small">Удаляет все задачи из очереди</p>
+                                        <form method="POST" action="{{ url_for('admin_parsing.clear_image_queue') }}" 
+                                              class="mb-0"
+                                              onsubmit="return confirm('Вы уверены? Все задачи в очереди будут удалены.');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <div class="alert alert-danger">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                Это действие нельзя отменить
+                                            </div>
+                                            <button type="submit" class="btn btn-danger w-100">
+                                                <i class="fas fa-trash me-1"></i> Очистить очередь
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-image me-1"></i> Загрузить изображения
-                            </button>
-                        </form>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <strong><i class="fas fa-lightbulb me-1"></i> Как это работает:</strong><br>
+                            1. При парсинге URL изображений сохраняются в очередь (таблица ImageQueue)<br>
+                            2. Система обрабатывает очередь, загружая изображения по одному<br>
+                            3. После успешной загрузки задача удаляется из очереди<br>
+                            4. Ошибки автоматически повторяются (до 3 раз)
+                        </div>
                     </div>
                 </div>
                 
@@ -123,27 +183,9 @@
                         <form method="POST" action="{{ url_for('admin_parsing.update_category_images') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             
-                            <div class="mb-3">
-                                <label class="form-label">Что будет сделано:</label>
-                                <ul class="list-group mb-3">
-                                    <li class="list-group-item">
-                                        <i class="fas fa-check text-success me-2"></i>
-                                        Для каждой категории будет найден первый блюдо с изображением
-                                    </li>
-                                    <li class="list-group-item">
-                                        <i class="fas fa-check text-success me-2"></i>
-                                        Изображение блюда скопируется в поле изображения категории
-                                    </li>
-                                    <li class="list-group-item">
-                                        <i class="fas fa-check text-success me-2"></i>
-                                        Главная страница будет отображать категории с изображениями
-                                    </li>
-                                </ul>
-                            </div>
-                            
                             <div class="alert alert-warning">
                                 <i class="fas fa-exclamation-triangle me-1"></i>
-                                <strong>Рекомендация:</strong> Выполняйте эту операцию после того, как загрузите хотя бы несколько изображений блюд.
+                                <strong>Рекомендация:</strong> Выполняйте эту операцию после обработки очереди изображений.
                             </div>
                             
                             <button type="submit" class="btn btn-info w-100" 
@@ -158,6 +200,9 @@
                     <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-1"></i> На главную
                     </a>
+                    <a href="/admin/imagequeue/" class="btn btn-outline-primary ms-2">
+                        <i class="fas fa-list me-1"></i> Просмотреть очередь
+                    </a>
                 </div>
             </div>
         </div>
@@ -168,9 +213,9 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Функция для загрузки статистики изображений
-    function loadImageStats() {
-        fetch('/admin-parsing/image-stats')
+    // Функция для загрузки статистики очереди
+    function loadQueueStats() {
+        fetch('/admin-parsing/queue-stats')
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
@@ -178,51 +223,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Создаем или обновляем блок статистики
-                let statsDiv = document.getElementById('image-stats');
-                if (!statsDiv) {
-                    statsDiv = document.createElement('div');
-                    statsDiv.id = 'image-stats';
-                    statsDiv.className = 'card mt-3';
-                    statsDiv.innerHTML = `
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-chart-bar me-1"></i> Статистика изображений</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6>Блюда:</h6>
-                                    <div class="progress mb-2">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: ${data.dish_image_percentage}%">
-                                            ${data.dish_image_percentage}%
-                                        </div>
-                                    </div>
-                                    <small>${data.dishes_with_images} из ${data.total_dishes} блюд имеют изображения</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6>Категории:</h6>
-                                    <div class="progress mb-2">
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: ${data.category_image_percentage}%">
-                                            ${data.category_image_percentage}%
-                                        </div>
-                                    </div>
-                                    <small>${data.categories_with_images} из ${data.total_categories} категорий имеют изображения</small>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    document.querySelector('.card-body').appendChild(statsDiv);
+                // Обновляем статистику
+                document.getElementById('queue-total').textContent = data.total || 0;
+                document.getElementById('queue-pending').textContent = data.pending || 0;
+                document.getElementById('queue-completed').textContent = data.completed || 0;
+                document.getElementById('queue-failed').textContent = data.failed || 0;
+                
+                // Показываем/скрываем блок статистики в зависимости от наличия задач
+                const queueStatsDiv = document.getElementById('queue-stats');
+                if (data.total > 0) {
+                    queueStatsDiv.style.display = 'block';
                 } else {
-                    // Обновляем существующий блок
-                    statsDiv.querySelector('.progress-bar.bg-success').style.width = data.dish_image_percentage + '%';
-                    statsDiv.querySelector('.progress-bar.bg-success').textContent = data.dish_image_percentage + '%';
-                    statsDiv.querySelector('.col-md-6:first-child small').textContent = 
-                        `${data.dishes_with_images} из ${data.total_dishes} блюд имеют изображения`;
-                    
-                    statsDiv.querySelector('.progress-bar.bg-info').style.width = data.category_image_percentage + '%';
-                    statsDiv.querySelector('.progress-bar.bg-info').textContent = data.category_image_percentage + '%';
-                    statsDiv.querySelector('.col-md-6:last-child small').textContent = 
-                        `${data.categories_with_images} из ${data.total_categories} категорий имеют изображения`;
+                    queueStatsDiv.style.display = 'none';
                 }
             })
             .catch(error => {
@@ -231,14 +243,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Загружаем статистику при загрузке страницы
-    loadImageStats();
+    loadQueueStats();
+    
+    // Обновляем статистику каждые 10 секунд
+    setInterval(loadQueueStats, 10000);
     
     // Обновляем статистику после выполнения действий
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', function() {
             setTimeout(() => {
-                loadImageStats();
-            }, 2000);
+                loadQueueStats();
+            }, 3000);
         });
     });
 });
