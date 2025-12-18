@@ -27,7 +27,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     image = db.Column(db.String(200))
-    dishes = db.relationship('Dish', backref='category', lazy=True)  # ВЕРНУЛИ обратно 'category'
+    dishes = db.relationship('Dish', backref='category', lazy=True)
     
     def __repr__(self):
         return f'<Category {self.name}>'
@@ -81,3 +81,19 @@ class OrderItem(db.Model):
     
     def __repr__(self):
         return f'<OrderItem order:{self.order_id} dish:{self.dish_id}>'
+
+class ImageQueue(db.Model):
+    """Очередь изображений для загрузки"""
+    id = db.Column(db.Integer, primary_key=True)
+    dish_id = db.Column(db.Integer, db.ForeignKey('dish.id'), nullable=False)
+    image_url = db.Column(db.String(500), nullable=False)
+    priority = db.Column(db.Integer, default=1)  # Приоритет загрузки (1-высокий, 5-низкий)
+    status = db.Column(db.String(20), default='pending')  # pending, downloading, completed, failed
+    retry_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    dish = db.relationship('Dish', backref='image_queue_items')
+    
+    def __repr__(self):
+        return f'<ImageQueue dish:{self.dish_id} url:{self.image_url[:30]}>'
