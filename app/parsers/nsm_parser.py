@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 import time
 from sqlalchemy import or_, and_
+from datetime import datetime, timedelta  # ДОБАВЛЕН ИМПОРТ
 
 logger = logging.getLogger(__name__)
 
@@ -598,7 +599,6 @@ class NSMParser:
         """Очищает очередь от старых и завершенных задач"""
         try:
             # Удаляем задачи, которые успешно завершены более 1 дня назад
-            from datetime import datetime, timedelta
             day_ago = datetime.utcnow() - timedelta(days=1)
             
             completed_items = ImageQueue.query.filter(
@@ -708,7 +708,7 @@ class NSMParser:
                 self.failed_urls.add(url)
                 return None
             
-            # Проверяем, является ли файл валидным изображением
+            # Проверяем, является ли файлом валидным изображением
             try:
                 from PIL import Image
                 with Image.open(file_path) as img:
