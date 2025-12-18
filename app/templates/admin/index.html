@@ -117,10 +117,11 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="card-title">Популярные блюда</h6>
-                            <h2 class="mb-0">{{ stats.popular_dishes|length }}</h2>
+                            <h6 class="card-title">Очередь изображений</h6>
+                            <h2 class="mb-0">{{ stats.queue_pending }}</h2>
+                            <small>из {{ stats.queue_total }}</small>
                         </div>
-                        <i class="fas fa-star fa-3x opacity-50"></i>
+                        <i class="fas fa-tasks fa-3x opacity-50"></i>
                     </div>
                 </div>
             </div>
@@ -159,19 +160,24 @@
                     </div>
                     
                     <div class="row mt-2">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('imagequeue.index_view') }}" class="btn btn-outline-dark w-100">
+                                <i class="fas fa-tasks mr-2"></i> Очередь изображений
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
                             <a href="/admin/user-stats" class="btn btn-outline-dark w-100">
-                                <i class="fas fa-chart-pie mr-2"></i> Статистика пользователей
+                                <i class="fas fa-chart-pie mr-2"></i> Статистика
                             </a>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="/admin/order-stats" class="btn btn-outline-dark w-100">
-                                <i class="fas fa-chart-line mr-2"></i> Статистика заказов
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <a href="{{ url_for('category.index_view') }}" class="btn btn-outline-secondary w-100">
                                 <i class="fas fa-list mr-2"></i> Категории
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="/admin/order-stats" class="btn btn-outline-dark w-100">
+                                <i class="fas fa-chart-line mr-2"></i> Статистика заказов
                             </a>
                         </div>
                     </div>
@@ -180,7 +186,38 @@
         </div>
     </div>
     
-    <!-- Последние заказы -->
+    <!-- Очередь изображений (если есть задачи) -->
+    {% if stats.queue_pending > 0 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Очередь изображений требует внимания</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <p class="mb-2">
+                            <strong>В очереди изображений {{ stats.queue_pending }} ожидающих задач</strong><br>
+                            {% if stats.queue_failed > 0 %}
+                            Из них {{ stats.queue_failed }} задач завершились с ошибкой
+                            {% endif %}
+                        </p>
+                        <div class="mt-3">
+                            <a href="{{ url_for('admin_parsing.parse_nsm') }}" class="btn btn-warning me-2">
+                                <i class="fas fa-tasks me-1"></i> Управление очередью
+                            </a>
+                            <a href="{{ url_for('imagequeue.index_view') }}" class="btn btn-outline-warning">
+                                <i class="fas fa-list me-1"></i> Просмотреть очередь
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Последние заказы (остается без изменений) -->
     <div class="row mt-4">
         <div class="col-12">
             <div class="card">
@@ -261,51 +298,5 @@
             </div>
         </div>
     </div>
-    
-    <!-- Популярные блюда -->
-    {% if stats.popular_dishes %}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-star me-2"></i>Популярные блюда</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Блюдо</th>
-                                    <th>Количество заказов</th>
-                                    <th>Популярность</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dish in stats.popular_dishes %}
-                                <tr>
-                                    <td>{{ loop.index }}</td>
-                                    <td>{{ dish.name }}</td>
-                                    <td>{{ dish.count }}</td>
-                                    <td>
-                                        <div class="progress" style="height: 20px;">
-                                            {% set max_count = stats.popular_dishes|map(attribute='count')|max %}
-                                            {% set percentage = (dish.count / max_count * 100) if max_count > 0 else 0 %}
-                                            <div class="progress-bar bg-warning" role="progressbar" 
-                                                 style="width: {{ percentage }}%">
-                                                {{ dish.count }} заказов
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
