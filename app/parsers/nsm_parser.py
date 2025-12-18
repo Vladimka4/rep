@@ -3,14 +3,14 @@ from bs4 import BeautifulSoup
 import os
 from urllib.parse import urljoin, urlparse
 from app import db
-from app.models import Category, Dish
+from app.models import Category, Dish, ImageQueue
 import hashlib
 import re
 from decimal import Decimal
 import logging
 from pathlib import Path
 import time
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 
 logger = logging.getLogger(__name__)
 
@@ -469,6 +469,171 @@ class NSMParser:
         
         return self._is_image_downloaded(image_filename)
     
+    def _add_to_image_queue(self, dish_id, image_url):
+        """Добавляет URL изображения в очередь для загрузки"""
+        try:
+            # Проверяем, нет ли уже этого URL в очереди
+            existing_queue = ImageQueue.query.filter_by(
+                dish_id=dish_id,
+                image_url=image_url
+            ).first()
+            
+            if existing_queue:
+                # Обновляем статус, если задача была неудачной
+                if existing_queue.status == 'failed' and existing_queue.retry_count < 3:
+                    existing_queue.status = 'pending'
+                    existing_queue.retry_count += 1
+                    existing_queue.updated_at = datetime.utcnow()
+                    db.session.commit()
+                    logger.debug(f"URL обновлен в очереди для повторной попытки: {image_url}")
+                return existing_queue.id
+            
+            # Создаем новую запись в очереди
+            image_queue = ImageQueue(
+                dish_id=dish_id,
+                image_url=image_url,
+                status='pending',
+                priority=1
+            )
+            db.session.add(image_queue)
+            db.session.commit()
+            
+            logger.info(f"URL добавлен в очередь загрузки: {image_url}")
+            return image_queue.id
+            
+        except Exception as e:
+            logger.error(f"Ошибка добавления в очередь: {e}")
+            db.session.rollback()
+            return None
+    
+    def _process_image_queue(self, limit=None):
+        """Обрабатывает очередь изображений"""
+        try:
+            # Получаем задачи из очереди с высоким приоритетом
+            query = ImageQueue.query.filter(
+                ImageQueue.status.in_(['pending', 'failed'])
+            ).order_by(ImageQueue.priority, ImageQueue.created_at)
+            
+            if limit:
+                query = query.limit(limit)
+            
+            queue_items = query.all()
+            
+            logger.info(f"Найдено {len(queue_items)} задач в очереди")
+            
+            if not queue_items:
+                return 0, 0, 0  # downloaded, failed, skipped
+            
+            downloaded = 0
+            failed = 0
+            skipped = 0
+            
+            for item in queue_items:
+                try:
+                    # Обновляем статус на "загружается"
+                    item.status = 'downloading'
+                    item.updated_at = datetime.utcnow()
+                    db.session.commit()
+                    
+                    # Получаем блюдо
+                    dish = Dish.query.get(item.dish_id)
+                    if not dish:
+                        item.status = 'failed'
+                        item.updated_at = datetime.utcnow()
+                        db.session.commit()
+                        failed += 1
+                        continue
+                    
+                    # Проверяем, не скачан ли уже URL
+                    if self._is_url_downloaded(item.image_url):
+                        item.status = 'skipped'
+                        item.updated_at = datetime.utcnow()
+                        db.session.commit()
+                        skipped += 1
+                        logger.debug(f"URL уже скачан, пропускаем: {item.image_url}")
+                        continue
+                    
+                    logger.info(f"Загружаем изображение из очереди: {item.image_url}")
+                    
+                    # Загружаем изображение
+                    image_filename = self._download_image(item.image_url, dish.name)
+                    
+                    if image_filename:
+                        # Обновляем блюдо
+                        dish.image = image_filename
+                        item.status = 'completed'
+                        item.updated_at = datetime.utcnow()
+                        db.session.commit()
+                        downloaded += 1
+                        logger.info(f"Изображение успешно загружено: {image_filename}")
+                    else:
+                        item.status = 'failed'
+                        item.retry_count += 1
+                        item.updated_at = datetime.utcnow()
+                        db.session.commit()
+                        failed += 1
+                        logger.warning(f"Не удалось загрузить изображение: {item.image_url}")
+                    
+                    # Пауза между загрузками
+                    time.sleep(1)
+                    
+                except Exception as e:
+                    logger.error(f"Ошибка обработки задачи очереди {item.id}: {e}")
+                    try:
+                        item.status = 'failed'
+                        item.retry_count += 1
+                        item.updated_at = datetime.utcnow()
+                        db.session.commit()
+                    except:
+                        pass
+                    failed += 1
+            
+            return downloaded, failed, skipped
+            
+        except Exception as e:
+            logger.error(f"Ошибка обработки очереди: {e}")
+            return 0, 0, 0
+    
+    def _cleanup_image_queue(self):
+        """Очищает очередь от старых и завершенных задач"""
+        try:
+            # Удаляем задачи, которые успешно завершены более 1 дня назад
+            from datetime import datetime, timedelta
+            day_ago = datetime.utcnow() - timedelta(days=1)
+            
+            completed_items = ImageQueue.query.filter(
+                ImageQueue.status == 'completed',
+                ImageQueue.updated_at < day_ago
+            ).all()
+            
+            deleted_count = 0
+            for item in completed_items:
+                db.session.delete(item)
+                deleted_count += 1
+            
+            # Удаляем задачи, которые неудачны и уже превысили лимит попыток
+            failed_items = ImageQueue.query.filter(
+                ImageQueue.status == 'failed',
+                ImageQueue.retry_count >= 3,
+                ImageQueue.updated_at < day_ago
+            ).all()
+            
+            for item in failed_items:
+                db.session.delete(item)
+                deleted_count += 1
+            
+            db.session.commit()
+            
+            if deleted_count > 0:
+                logger.info(f"Очищено {deleted_count} старых задач из очереди")
+            
+            return deleted_count
+            
+        except Exception as e:
+            logger.error(f"Ошибка очистки очереди: {e}")
+            db.session.rollback()
+            return 0
+    
     def _download_image(self, url, dish_name=None):
         """Скачивает изображение и сохраняет локально"""
         try:
@@ -621,12 +786,13 @@ class NSMParser:
             return []
     
     def save_to_database(self, dishes):
-        """Сохраняет спарсенные блюда в базу данных"""
+        """Сохраняет спарсенные блюда в базу данных и добавляет URL в очередь"""
         try:
             category_map = {}
             added_count = 0
             skipped_count = 0
             price_zero_count = 0
+            queue_added = 0
             
             for dish_data in dishes:
                 # Проверяем цену еще раз перед сохранением
@@ -662,8 +828,26 @@ class NSMParser:
                         image=None  # Изображение будет загружено отдельно
                     )
                     db.session.add(dish)
+                    db.session.flush()  # Получаем ID блюда
                     added_count += 1
+                    
+                    # Если есть URL изображения, добавляем в очередь
+                    if dish_data.get('image_url'):
+                        self._add_to_image_queue(dish.id, dish_data['image_url'])
+                        queue_added += 1
                 else:
+                    # Если блюдо уже существует, но нет изображения и есть URL, добавляем в очередь
+                    if not existing_dish.image and dish_data.get('image_url'):
+                        # Проверяем, нет ли уже этого URL в очереди
+                        existing_queue = ImageQueue.query.filter_by(
+                            dish_id=existing_dish.id,
+                            image_url=dish_data['image_url']
+                        ).first()
+                        
+                        if not existing_queue:
+                            self._add_to_image_queue(existing_dish.id, dish_data['image_url'])
+                            queue_added += 1
+                    
                     skipped_count += 1
             
             db.session.commit()
@@ -671,7 +855,7 @@ class NSMParser:
             if price_zero_count > 0:
                 logger.info(f"Пропущено {price_zero_count} блюд с нулевой ценой при сохранении в БД")
             
-            logger.info(f"Сохранено {added_count} блюд, пропущено {skipped_count} дубликатов")
+            logger.info(f"Сохранено {added_count} блюд, пропущено {skipped_count} дубликатов, добавлено {queue_added} URL в очередь")
             return True
             
         except Exception as e:
@@ -679,156 +863,54 @@ class NSMParser:
             logger.error(f"Ошибка сохранения в базу: {e}")
             return False
     
-    def download_images(self, limit=None, skip_existing=True):
-        """Загружает изображения для блюд без изображений"""
+    def process_image_queue(self, limit=None, cleanup=True):
+        """Обрабатывает очередь изображений"""
         try:
-            # Получаем блюда без изображений
-            if skip_existing:
-                query = Dish.query.filter(
-                    or_(
-                        Dish.image.is_(None),
-                        Dish.image == '',
-                        Dish.image == 'default.jpg'
-                    )
-                )
-            else:
-                query = Dish.query
+            # Сначала очищаем старые задачи, если нужно
+            if cleanup:
+                self._cleanup_image_queue()
             
-            if limit:
-                query = query.limit(limit)
+            # Обрабатываем очередь
+            downloaded, failed, skipped = self._process_image_queue(limit)
             
-            dishes_to_process = query.all()
-            
-            logger.info(f"Найдено {len(dishes_to_process)} блюд для обработки изображений")
-            
-            if not dishes_to_process:
-                return 0
-            
-            # Сначала получим все URL изображений для быстрой проверки
-            downloaded_count = 0
-            skipped_count = 0
-            
-            for dish in dishes_to_process:
-                try:
-                    # Для каждого блюда получим категорию и попробуем найти изображение
-                    category = Category.query.get(dish.category_id)
-                    if not category:
-                        skipped_count += 1
-                        continue
-                    
-                    # Парсим раздел для поиска изображения только если нужно
-                    logger.info(f"Поиск изображения для: {dish.name}")
-                    
-                    # Получаем URL раздела из статичного списка
-                    section_url = self._get_section_url_by_name(category.name)
-                    if not section_url:
-                        skipped_count += 1
-                        continue
-                    
-                    # Парсим раздел и ищем изображение для этого блюда
-                    image_url = self._find_image_url_for_dish(section_url, dish.name)
-                    if image_url:
-                        # Загружаем изображение с проверкой дубликатов
-                        image_filename = self._download_image(image_url, dish.name)
-                        if image_filename:
-                            dish.image = image_filename
-                            downloaded_count += 1
-                            logger.info(f"  Загружено изображение для: {dish.name}")
-                            
-                            # Коммитим после каждого успешного сохранения
-                            try:
-                                db.session.commit()
-                            except Exception as e:
-                                logger.error(f"Ошибка коммита для блюда {dish.id}: {e}")
-                                db.session.rollback()
-                                continue
-                        else:
-                            skipped_count += 1
-                    else:
-                        skipped_count += 1
-                    
-                    # Пауза между загрузками
-                    time.sleep(1)
-                    
-                except Exception as e:
-                    logger.error(f"Ошибка обработки блюда {dish.id}: {e}")
-                    skipped_count += 1
-                    continue
-            
-            logger.info(f"Загружено {downloaded_count} изображений, пропущено {skipped_count}")
-            return downloaded_count
+            return {
+                'downloaded': downloaded,
+                'failed': failed,
+                'skipped': skipped,
+                'total': downloaded + failed + skipped
+            }
             
         except Exception as e:
-            db.session.rollback()
-            logger.error(f"Ошибка при загрузке изображений: {e}")
-            return 0
+            logger.error(f"Ошибка обработки очереди изображений: {e}")
+            return {
+                'downloaded': 0,
+                'failed': 0,
+                'skipped': 0,
+                'total': 0
+            }
     
-    def _get_section_url_by_name(self, section_name):
-        """Получает URL раздела по его имени"""
-        sections_mapping = {
-            'Салаты': 'https://nsm-22.ru/salaty/',
-            'Закуски': 'https://nsm-22.ru/zakuski/',
-            'Горячие закуски': 'https://nsm-22.ru/goryachie-zakuski/',
-            'Супы': 'https://nsm-22.ru/supy/',
-            'Паста': 'https://nsm-22.ru/pasta/',
-            'Лепка': 'https://nsm-22.ru/lepka/',
-            'Рыба': 'https://nsm-22.ru/ryba/',
-            'Мясо и птица': 'https://nsm-22.ru/myaso-i-ptitsa/',
-            'Гарниры': 'https://nsm-22.ru/garniry/',
-            'Десерты': 'https://nsm-22.ru/deserty/',
-            'Детское меню': 'https://nsm-22.ru/detskoe-menyu/',
-        }
-        return sections_mapping.get(section_name)
-    
-    def _find_image_url_for_dish(self, section_url, dish_name):
-        """Находит URL изображения для конкретного блюда"""
+    def get_queue_stats(self):
+        """Получает статистику очереди"""
         try:
-            response = requests.get(section_url, headers=self.headers, timeout=self.timeout)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+            total = ImageQueue.query.count()
+            pending = ImageQueue.query.filter_by(status='pending').count()
+            downloading = ImageQueue.query.filter_by(status='downloading').count()
+            completed = ImageQueue.query.filter_by(status='completed').count()
+            failed = ImageQueue.query.filter_by(status='failed').count()
+            skipped = ImageQueue.query.filter_by(status='skipped').count()
             
-            # Ищем все блюда в разделе
-            prodline_sections = soup.find_all('section', class_='prodline')
-            
-            for prodline in prodline_sections:
-                columns = prodline.find_all('div', class_='elementor-column')
-                
-                for column in columns:
-                    # Ищем название блюда
-                    prodhead = column.find('div', class_='prodhead')
-                    if not prodhead:
-                        continue
-                    
-                    name_elem = prodhead.find(['h2', 'h3', 'h4'], class_=lambda x: x and 'title' in str(x).lower())
-                    if not name_elem:
-                        name_elem = prodhead.find(['h2', 'h3', 'h4'])
-                    
-                    if not name_elem:
-                        continue
-                    
-                    name = self.clean_text(name_elem.get_text(strip=True))
-                    
-                    # Если нашли нужное блюдо (содержит название)
-                    if dish_name.lower() in name.lower() or name.lower() in dish_name.lower():
-                        # Ищем изображение
-                        prodimg = column.find('div', class_='prodimg')
-                        if prodimg:
-                            img_elem = prodimg.find('img')
-                            if img_elem and img_elem.get('src'):
-                                return urljoin(self.base_url, img_elem['src'])
-                        else:
-                            # Ищем изображение в других местах
-                            img_elem = column.find('img')
-                            if img_elem and img_elem.get('src'):
-                                src = img_elem['src']
-                                if not src.startswith(('data:', 'javascript:')):
-                                    return urljoin(self.base_url, src)
-            
-            return None
+            return {
+                'total': total,
+                'pending': pending,
+                'downloading': downloading,
+                'completed': completed,
+                'failed': failed,
+                'skipped': skipped
+            }
             
         except Exception as e:
-            logger.warning(f"Ошибка при поиске изображения для {dish_name}: {e}")
-            return None
+            logger.error(f"Ошибка получения статистики очереди: {e}")
+            return {}
 
 def parse_nsm_menu():
     """Основная функция для парсинга меню"""
@@ -867,19 +949,36 @@ def save_nsm_menu_to_db():
         logger.error("❌ Не удалось получить меню для сохранения")
         return False
 
-def download_nsm_images(limit=5, skip_existing=True):
-    """Загружает изображения для блюд"""
+def process_image_queue(limit=5, cleanup=True):
+    """Обрабатывает очередь изображений"""
     parser = NSMParser()
     
-    logger.info(f"Начинаю загрузку изображений (максимум {limit}, пропуск существующих: {skip_existing})...")
-    downloaded = parser.download_images(limit=limit, skip_existing=skip_existing)
+    logger.info(f"Начинаю обработку очереди изображений (максимум {limit})...")
+    result = parser.process_image_queue(limit=limit, cleanup=cleanup)
     
-    if downloaded > 0:
-        logger.info(f"✅ Загружено {downloaded} изображений")
-        return True
+    if result['total'] > 0:
+        logger.info(f"✅ Обработано {result['total']} задач: {result['downloaded']} загружено, {result['failed']} ошибок, {result['skipped']} пропущено")
+        return result
     else:
-        logger.info("❌ Не удалось загрузить изображения или все уже загружены")
-        return False
+        logger.info("❌ В очереди нет задач для обработки")
+        return result
+
+def get_queue_stats():
+    """Получает статистику очереди"""
+    parser = NSMParser()
+    return parser.get_queue_stats()
+
+def clear_image_queue():
+    """Очищает всю очередь изображений"""
+    try:
+        deleted_count = ImageQueue.query.delete()
+        db.session.commit()
+        logger.info(f"✅ Очередь изображений очищена: удалено {deleted_count} задач")
+        return deleted_count
+    except Exception as e:
+        logger.error(f"Ошибка очистки очереди: {e}")
+        db.session.rollback()
+        return 0
 
 def update_category_images_from_dishes():
     """Обновляет изображения категорий на основе первого блюда в категории"""
