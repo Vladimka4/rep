@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from wtforms import PasswordField, TextAreaField, FloatField, IntegerField, SelectField
 from wtforms.validators import DataRequired, Length, NumberRange
 from . import db
-from .models import User, Category, Dish, Order, OrderItem, Favorite
+from .models import User, Category, Dish, Order, OrderItem, Favorite, ImageQueue
 from .parsers.nsm_parser import NSMParser
 import logging
 from datetime import date, datetime, timedelta
@@ -62,69 +62,75 @@ def parse_nsm_action():
     
     return redirect(url_for('admin_parsing.parse_nsm'))
 
-@admin_parsing_bp.route('/download-images', methods=['POST'])
+@admin_parsing_bp.route('/process-image-queue', methods=['POST'])
 @login_required
-def download_images():
+def process_image_queue():
+    """Обработка очереди изображений"""
     if not current_user.is_admin:
         flash('Доступ запрещен', 'danger')
         return redirect(url_for('main.index'))
     
-    from .parsers.nsm_parser import download_nsm_images
+    from .parsers.nsm_parser import process_image_queue, get_queue_stats
     
     limit = request.form.get('limit', 5, type=int)
-    skip_existing = request.form.get('skip_existing', 'true') == 'true'
+    cleanup = request.form.get('cleanup', 'true') == 'true'
     
     try:
-        success = download_nsm_images(limit=limit, skip_existing=skip_existing)
-        if success:
-            flash(f'Изображения успешно загружены (максимум {limit}, пропуск существующих: {skip_existing})', 'success')
-        else:
-            flash('Не удалось загрузить изображения или все уже загружены', 'warning')
+        # Сначала показываем статистику до обработки
+        stats_before = get_queue_stats()
+        
+        # Обрабатываем очередь
+        result = process_image_queue(limit=limit, cleanup=cleanup)
+        
+        # Получаем статистику после обработки
+        stats_after = get_queue_stats()
+        
+        flash(
+            f'✅ Обработано {result["total"]} задач: {result["downloaded"]} загружено, '
+            f'{result["failed"]} ошибок, {result["skipped"]} пропущено. '
+            f'В очереди осталось: {stats_after.get("pending", 0)}',
+            'success'
+        )
+        
     except Exception as e:
-        logger.error(f"Ошибка загрузки изображений: {e}")
-        flash(f'Ошибка при загрузке изображений: {e}', 'danger')
+        logger.error(f"Ошибка обработки очереди изображений: {e}")
+        flash(f'Ошибка при обработке очереди: {e}', 'danger')
     
     return redirect(url_for('admin_parsing.parse_nsm'))
 
-@admin_parsing_bp.route('/image-stats')
+@admin_parsing_bp.route('/clear-image-queue', methods=['POST'])
 @login_required
-def image_stats():
-    """Статистика по изображениям"""
+def clear_image_queue():
+    """Очистка очереди изображений"""
     if not current_user.is_admin:
         flash('Доступ запрещен', 'danger')
         return redirect(url_for('main.index'))
     
-    from .models import Category, Dish
+    from .parsers.nsm_parser import clear_image_queue
     
     try:
-        # Статистика по блюдам
-        total_dishes = Dish.query.count()
-        dishes_with_images = Dish.query.filter(
-            Dish.image.isnot(None),
-            Dish.image != '',
-            Dish.image != 'default.jpg'
-        ).count()
-        
-        # Статистика по категориям
-        total_categories = Category.query.count()
-        categories_with_images = Category.query.filter(
-            Category.image.isnot(None),
-            Category.image != ''
-        ).count()
-        
-        stats = {
-            'total_dishes': total_dishes,
-            'dishes_with_images': dishes_with_images,
-            'total_categories': total_categories,
-            'categories_with_images': categories_with_images,
-            'dish_image_percentage': round((dishes_with_images / total_dishes * 100) if total_dishes > 0 else 0, 1),
-            'category_image_percentage': round((categories_with_images / total_categories * 100) if total_categories > 0 else 0, 1)
-        }
-        
-        return jsonify(stats)
-        
+        deleted = clear_image_queue()
+        flash(f'✅ Очередь изображений очищена: удалено {deleted} задач', 'success')
     except Exception as e:
-        logger.error(f"Ошибка получения статистики: {e}")
+        logger.error(f"Ошибка очистки очереди: {e}")
+        flash(f'Ошибка при очистке очереди: {e}', 'danger')
+    
+    return redirect(url_for('admin_parsing.parse_nsm'))
+
+@admin_parsing_bp.route('/queue-stats')
+@login_required
+def queue_stats():
+    """Статистика очереди изображений"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Доступ запрещен'}), 403
+    
+    from .parsers.nsm_parser import get_queue_stats
+    
+    try:
+        stats = get_queue_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики очереди: {e}")
         return jsonify({'error': str(e)}), 500
 
 @admin_parsing_bp.route('/update-category-images', methods=['POST'])
@@ -153,7 +159,7 @@ def update_category_images():
     return redirect(url_for('admin_parsing.parse_nsm'))
 
 # ============================================================================
-# 2. FLASK-ADMIN панель управления
+# 2. FLASK-ADMIN панель управления (остается как есть, только добавляем ImageQueueAdminView)
 # ============================================================================
 
 class SecureModelView(ModelView):
@@ -175,9 +181,40 @@ class SecureModelView(ModelView):
         flash('У вас нет прав для доступа к этой странице.', 'danger')
         return redirect(url_for('main.index'))
 
+class ImageQueueAdminView(SecureModelView):
+    """Админка для очереди изображений"""
+    column_list = ['id', 'dish', 'image_url_short', 'status', 'priority', 'retry_count', 'created_at', 'updated_at']
+    column_searchable_list = ['image_url', 'status']
+    column_filters = ['status', 'priority', 'dish']
+    column_sortable_list = ['id', 'priority', 'created_at', 'updated_at']
+    column_default_sort = ('priority', True)
+    
+    form_columns = ['dish', 'image_url', 'status', 'priority', 'retry_count']
+    
+    column_labels = {
+        'id': 'ID',
+        'dish': 'Блюдо',
+        'image_url_short': 'URL изображения',
+        'status': 'Статус',
+        'priority': 'Приоритет',
+        'retry_count': 'Попыток',
+        'created_at': 'Создано',
+        'updated_at': 'Обновлено'
+    }
+    
+    column_formatters = {
+        'image_url_short': lambda v, c, m, p: m.image_url[:50] + '...' if len(m.image_url) > 50 else m.image_url,
+        'created_at': lambda v, c, m, p: m.created_at.strftime('%d.%m.%Y %H:%M'),
+        'updated_at': lambda v, c, m, p: m.updated_at.strftime('%d.%m.%Y %H:%M'),
+        'dish': lambda v, c, m, p: m.dish.name if m.dish else 'N/A'
+    }
+    
+    def on_model_delete(self, model):
+        # При удалении из админки логируем
+        logger.info(f"Удалена задача очереди: {model.id} (блюдо: {model.dish_id})")
+
 class UserAdminView(SecureModelView):
     """Админка для пользователей"""
-    # Используем 'admin_user' как endpoint для User
     column_list = ['id', 'username', 'is_admin', 'is_active', 'created_at', 'orders']
     column_searchable_list = ['username']
     column_filters = ['is_admin', 'is_active', 'created_at']
@@ -211,7 +248,6 @@ class UserAdminView(SecureModelView):
 
 class CategoryAdminView(SecureModelView):
     """Админка для категорий"""
-    # Используем 'admin_category' как endpoint для Category
     column_list = ['id', 'name', 'image', 'dishes']
     column_searchable_list = ['name']
     column_filters = ['name']
@@ -232,19 +268,16 @@ class CategoryAdminView(SecureModelView):
     }
     
     def after_model_change(self, form, model, is_created):
-        # Обновляем кэш или что-то еще при изменении категории
         pass
 
 class DishAdminView(SecureModelView):
     """Админка для блюд"""
-    # Используем 'admin_dish' как endpoint для Dish
     column_list = ['id', 'name', 'category', 'price', 'is_available', 'image']
     column_searchable_list = ['name', 'description']
     column_filters = ['is_available', 'category', 'price']
     column_sortable_list = ['id', 'name', 'price']
     column_default_sort = ('id', True)
     
-    # Создаем кастомное поле для выбора категории
     form_columns = ['name', 'description', 'price', 'category', 'is_available', 'image']
     
     column_labels = {
@@ -263,29 +296,24 @@ class DishAdminView(SecureModelView):
     }
     
     def on_model_change(self, form, model, is_created):
-        # Очистка описания от лишних пробелов
         if model.description:
             model.description = model.description.strip()
-        # Округление цены до 2 знаков
         model.price = round(model.price, 2)
         
-        # Если изображение пустое, ставим placeholder
         if not model.image:
             model.image = 'default.jpg'
 
 class OrderAdminView(SecureModelView):
     """Админка для заказов"""
-    # Используем 'admin_order' как endpoint для Order
-    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'customer']  # ИЗМЕНЕНО: 'user' -> 'customer'
+    column_list = ['id', 'customer_name', 'address', 'phone', 'total', 'status', 'created_at', 'customer']
     column_searchable_list = ['customer_name', 'address', 'phone']
     column_filters = ['status', 'created_at', 'total']
     column_sortable_list = ['id', 'total', 'created_at']
     column_default_sort = ('created_at', True)
     
-    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'customer']  # ИЗМЕНЕНО: 'user' -> 'customer'
-    can_create = False  # Заказы создаются только через сайт
+    form_columns = ['customer_name', 'address', 'phone', 'total', 'status', 'customer']
+    can_create = False
     
-    # Добавляем возможность изменения статуса
     form_choices = {
         'status': [
             ('Новый', 'Новый'),
@@ -305,24 +333,17 @@ class OrderAdminView(SecureModelView):
         'total': 'Сумма',
         'status': 'Статус',
         'created_at': 'Дата создания',
-        'customer': 'Пользователь'  # ИЗМЕНЕНО: 'user' -> 'customer'
+        'customer': 'Пользователь'
     }
     
     column_formatters = {
         'created_at': lambda v, c, m, p: m.created_at.strftime('%d.%m.%Y %H:%M'),
         'total': lambda v, c, m, p: f"{m.total} ₽",
-        'customer': lambda v, c, m, p: m.customer.username if m.customer else 'Гость'  # ИЗМЕНЕНО: m.user -> m.customer
+        'customer': lambda v, c, m, p: m.customer.username if m.customer else 'Гость'
     }
-    
-    def on_model_change(self, form, model, is_created):
-        # Если заказ доставлен или отменен, нельзя менять статус на другие
-        if model.status in ['Доставлен', 'Отменен']:
-            # Можно добавить логику блокировки изменения
-            pass
 
 class OrderItemAdminView(SecureModelView):
     """Админка для позиций заказа"""
-    # Используем 'admin_orderitem' как endpoint для OrderItem
     column_list = ['id', 'order', 'dish', 'quantity', 'price', 'total']
     column_filters = ['order', 'dish']
     column_sortable_list = ['id', 'quantity', 'price']
@@ -344,17 +365,14 @@ class OrderItemAdminView(SecureModelView):
     }
     
     def on_model_change(self, form, model, is_created):
-        # Автоматически обновляем общую сумму заказа
         order = model.order
         if order:
-            # Пересчитываем общую сумму заказа
             total = sum(item.quantity * item.price for item in order.items)
             order.total = total
             db.session.commit()
 
 class FavoriteAdminView(SecureModelView):
     """Админка для избранного"""
-    # Используем 'admin_favorite' как endpoint для Favorite
     column_list = ['id', 'user', 'dish', 'added_at']
     column_filters = ['user', 'dish', 'added_at']
     column_sortable_list = ['id', 'added_at']
@@ -384,12 +402,17 @@ class MyAdminIndexView(AdminIndexView):
     
     @expose('/')
     def index(self):
-        from .models import User, Order, Dish, Category
+        from .models import User, Order, Dish, Category, ImageQueue
         
         users_count = User.query.count()
         orders_count = Order.query.count()
         dishes_count = Dish.query.count()
         categories_count = Category.query.count()
+        
+        # Статистика очереди изображений
+        queue_total = ImageQueue.query.count()
+        queue_pending = ImageQueue.query.filter_by(status='pending').count()
+        queue_failed = ImageQueue.query.filter_by(status='failed').count()
         
         today = datetime.now().date()
         today_orders = Order.query.filter(
@@ -420,6 +443,9 @@ class MyAdminIndexView(AdminIndexView):
             'orders_count': orders_count,
             'dishes_count': dishes_count,
             'categories_count': categories_count,
+            'queue_total': queue_total,
+            'queue_pending': queue_pending,
+            'queue_failed': queue_failed,
             'today_orders': today_orders,
             'recent_orders': recent_orders,
             'total_revenue': total_revenue,
@@ -438,17 +464,18 @@ def init_admin(app):
     """Инициализация админ-панели"""
     flask_admin.init_app(app)
     
-    # Добавляем представления моделей с явными endpoint
+    # Добавляем представления моделей
     flask_admin.add_view(UserAdminView(User, db.session, name='Пользователи', category='Основные', endpoint='user'))
     flask_admin.add_view(CategoryAdminView(Category, db.session, name='Категории', category='Основные', endpoint='category'))
     flask_admin.add_view(DishAdminView(Dish, db.session, name='Блюда', category='Основные', endpoint='dish'))
     flask_admin.add_view(OrderAdminView(Order, db.session, name='Заказы', category='Основные', endpoint='order'))
+    flask_admin.add_view(ImageQueueAdminView(ImageQueue, db.session, name='Очередь изображений', category='Дополнительно', endpoint='imagequeue'))
     
     # Дополнительные модели
     flask_admin.add_view(OrderItemAdminView(OrderItem, db.session, name='Позиции заказа', category='Дополнительно', endpoint='orderitem'))
     flask_admin.add_view(FavoriteAdminView(Favorite, db.session, name='Избранное', category='Дополнительно', endpoint='favorite'))
     
-    # Создаем кастомные страницы
+    # Создаем кастомные страницы статистики
     @app.route('/admin/user-stats')
     @login_required
     def user_stats():
@@ -458,16 +485,13 @@ def init_admin(app):
         
         from .models import User
         
-        # Статистика по пользователям
         total_users = User.query.count()
         active_users = User.query.filter_by(is_active=True).count()
         admin_users = User.query.filter_by(is_admin=True).count()
         
-        # Новые пользователи за последние 7 дней
         week_ago = datetime.now() - timedelta(days=7)
         new_users = User.query.filter(User.created_at >= week_ago).count()
         
-        # Пользователи по дате регистрации
         users_by_date = db.session.query(
             db.func.date(User.created_at).label('date'),
             db.func.count(User.id).label('count')
@@ -492,18 +516,15 @@ def init_admin(app):
         
         from .models import Order
         
-        # Общая статистика
         total_orders = Order.query.count()
         total_revenue = db.session.query(db.func.sum(Order.total)).scalar() or 0
         
-        # Статистика по статусам
         status_stats = db.session.query(
             Order.status,
             db.func.count(Order.id).label('count'),
             db.func.sum(Order.total).label('revenue')
         ).group_by(Order.status).all()
         
-        # Статистика по дням
         today = datetime.now().date()
         week_ago = today - timedelta(days=7)
         month_ago = today - timedelta(days=30)
@@ -524,7 +545,6 @@ def init_admin(app):
             db.func.date(Order.created_at) >= month_ago
         ).scalar() or 0
         
-        # Заказы по дням
         orders_by_date = db.session.query(
             db.func.date(Order.created_at).label('date'),
             db.func.count(Order.id).label('count'),
